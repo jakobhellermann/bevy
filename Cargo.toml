@@ -406,6 +406,11 @@ crate-type = ["cdylib"]
 name = "android"
 path = "examples/android/android.rs"
 
+[[example]]
+name = "pbr"
+path = "examples/3d/pbr.rs"
+
+
 [package.metadata.android]
 apk_label = "Bevy Example"
 assets = "assets"

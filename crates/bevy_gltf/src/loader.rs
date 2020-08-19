@@ -2,7 +2,7 @@ use anyhow::Result;
 use bevy_asset::{AssetIoError, AssetLoader, AssetPath, Handle, LoadContext, LoadedAsset};
 use bevy_core::Name;
 use bevy_ecs::{bevy_utils::BoxedFuture, World, WorldBuilderSource};
-use bevy_math::Mat4;
+use bevy_math::{Mat4, Vec2};
 use bevy_pbr::prelude::{PbrBundle, StandardMaterial};
 use bevy_render::{
     camera::{
@@ -293,12 +293,14 @@ fn load_material(material: &Material, load_context: &mut LoadContext) -> Handle<
     };
 
     let color = pbr.base_color_factor();
+
     load_context.set_labeled_asset(
         &material_label,
         LoadedAsset::new(StandardMaterial {
             albedo: Color::rgba(color[0], color[1], color[2], color[3]),
             albedo_texture: texture_handle,
             unlit: material.unlit(),
+            pbr: Vec2::new(pbr.roughness_factor(), pbr.metallic_factor()),
         })
         .with_dependencies(dependencies),
     )

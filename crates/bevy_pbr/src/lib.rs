@@ -46,6 +46,7 @@ impl Plugin for PbrPlugin {
             Handle::<StandardMaterial>::default(),
             StandardMaterial {
                 albedo: Color::PINK,
+                pbr: Default::default(),
                 unlit: true,
                 albedo_texture: None,
             },
