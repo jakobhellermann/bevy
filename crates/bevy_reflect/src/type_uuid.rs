@@ -22,3 +22,9 @@ where
         std::any::type_name::<Self>()
     }
 }
+
+impl TypeUuid for () {
+    const TYPE_UUID: Uuid = Uuid::from_bytes([
+        60, 70, 221, 150, 246, 248, 77, 27, 160, 142, 226, 48, 200, 97, 202, 213,
+    ]);
+}
