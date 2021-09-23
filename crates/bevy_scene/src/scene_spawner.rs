@@ -1,6 +1,6 @@
 use crate::{DynamicScene, Scene};
 use bevy_app::{Events, ManualEventReader};
-use bevy_asset::{AssetEvent, Assets, Handle};
+use bevy_asset::{prelude::WeakHandle, AssetEvent, Assets, Handle};
 use bevy_ecs::{
     entity::{Entity, EntityMap},
     reflect::{ReflectComponent, ReflectMapEntities},
@@ -45,7 +45,7 @@ pub enum SceneSpawnError {
     #[error("scene contains the unregistered type `{type_name}`. consider registering the type using `app.register_type::<T>()`")]
     UnregisteredType { type_name: String },
     #[error("scene does not exist")]
-    NonExistentScene { handle: Handle<DynamicScene> },
+    NonExistentScene { handle: WeakHandle<DynamicScene> },
     #[error("scene does not exist")]
     NonExistentRealScene { handle: Handle<Scene> },
 }
@@ -98,13 +98,19 @@ impl SceneSpawner {
         scene_handle: &Handle<DynamicScene>,
     ) -> Result<(), SceneSpawnError> {
         let mut entity_map = EntityMap::default();
-        Self::spawn_dynamic_internal(world, scene_handle, &mut entity_map)?;
+        Self::spawn_dynamic_internal(world, scene_handle.clone_weak(), &mut entity_map)?;
         let instance_id = InstanceId::new();
         self.spawned_instances
             .insert(instance_id, InstanceInfo { entity_map });
+
+        let scenes = world.get_resource::<Assets<DynamicScene>>().unwrap();
+        // Resolve handle eagerly so that future asset events can be used look up spawned scenes.
+        // The `unwrap` is okay because `spawn_scene_internal` returns an error if the handle can't be looked up.
+        let resolved_handle = scenes.resolve(scene_handle).unwrap().upgrade(scenes);
+
         let spawned = self
             .spawned_dynamic_scenes
-            .entry(scene_handle.clone())
+            .entry(resolved_handle)
             .or_insert_with(Vec::new);
         spawned.push(instance_id);
         Ok(())
@@ -112,16 +118,15 @@ impl SceneSpawner {
 
     fn spawn_dynamic_internal(
         world: &mut World,
-        scene_handle: &Handle<DynamicScene>,
+        scene_handle: WeakHandle<DynamicScene>,
         entity_map: &mut EntityMap,
     ) -> Result<(), SceneSpawnError> {
         world.resource_scope(|world, scenes: Mut<Assets<DynamicScene>>| {
-            let scene =
-                scenes
-                    .get(scene_handle)
-                    .ok_or_else(|| SceneSpawnError::NonExistentScene {
-                        handle: scene_handle.clone_weak(),
-                    })?;
+            let scene = scenes
+                .get(&scene_handle)
+                .ok_or(SceneSpawnError::NonExistentScene {
+                    handle: scene_handle,
+                })?;
             scene.write_to_world(world, entity_map)
         })
     }
@@ -207,7 +212,7 @@ impl SceneSpawner {
     pub fn update_spawned_scenes(
         &mut self,
         world: &mut World,
-        scene_handles: &[Handle<DynamicScene>],
+        scene_handles: &[WeakHandle<DynamicScene>],
     ) -> Result<(), SceneSpawnError> {
         for scene_handle in scene_handles {
             if let Some(spawned_instances) = self.spawned_dynamic_scenes.get(scene_handle) {
@@ -215,7 +220,7 @@ impl SceneSpawner {
                     if let Some(instance_info) = self.spawned_instances.get_mut(instance_id) {
                         Self::spawn_dynamic_internal(
                             world,
-                            scene_handle,
+                            *scene_handle,
                             &mut instance_info.entity_map,
                         )?;
                     }
@@ -308,8 +313,9 @@ pub fn scene_spawner_system(world: &mut World) {
             .iter(scene_asset_events)
         {
             if let AssetEvent::Modified { handle } = event {
+                // TODO: this only works for resolved handles. Maybe eagerly resolve before putting in `spawned_dynamic_scenes`?
                 if scene_spawner.spawned_dynamic_scenes.contains_key(handle) {
-                    updated_spawned_scenes.push(handle.clone_weak());
+                    updated_spawned_scenes.push(*handle);
                 }
             }
         }

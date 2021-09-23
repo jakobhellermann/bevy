@@ -1,4 +1,7 @@
-use crate::{serde::SceneSerializer, Scene, SceneSpawnError};
+use crate::{
+    serde::{SceneDeserializer, SceneSerializer},
+    Scene, SceneSpawnError, TYPE_REGISTRY,
+};
 use anyhow::Result;
 use bevy_ecs::{
     entity::EntityMap,
@@ -6,12 +9,29 @@ use bevy_ecs::{
     world::World,
 };
 use bevy_reflect::{Reflect, TypeRegistryArc, TypeUuid};
-use serde::Serialize;
+use serde::{de::DeserializeSeed, Deserialize, Serialize};
 
 #[derive(Default, TypeUuid)]
 #[uuid = "749479b1-fb8c-4ff8-a775-623aa76014f5"]
 pub struct DynamicScene {
     pub entities: Vec<Entity>,
+}
+
+impl Serialize for DynamicScene {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        SceneSerializer::new(self, TYPE_REGISTRY.get().unwrap()).serialize(serializer)
+    }
+}
+impl<'de> Deserialize<'de> for DynamicScene {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let type_registry = TYPE_REGISTRY.get().unwrap().read();
+
+        let val = SceneDeserializer {
+            type_registry: &*type_registry,
+        }
+        .deserialize(deserializer)?;
+        Ok(val)
+    }
 }
 
 pub struct Entity {

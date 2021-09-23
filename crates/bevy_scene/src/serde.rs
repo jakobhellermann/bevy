@@ -166,7 +166,24 @@ impl<'a, 'de> Visitor<'de> for SceneEntityVisitor<'a> {
     type Value = Entity;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("entities")
+        formatter.write_str("an entity")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let id: u32 = seq.next_element()?.unwrap();
+        let components: Vec<Box<dyn Reflect>> = seq
+            .next_element_seed(ComponentVecDeserializer {
+                registry: self.registry,
+            })?
+            .unwrap();
+
+        Ok(Entity {
+            entity: id,
+            components,
+        })
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>

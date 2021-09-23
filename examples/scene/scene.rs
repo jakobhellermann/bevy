@@ -1,14 +1,14 @@
-use bevy::{prelude::*, reflect::TypeRegistry, utils::Duration};
+use bevy::{app::ScheduleRunnerPlugin, prelude::*, reflect::TypeRegistry, utils::Duration};
 
 /// This example illustrates loading and saving scenes from files
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(ScheduleRunnerPlugin::default())
         .register_type::<ComponentA>()
         .register_type::<ComponentB>()
-        .add_startup_system(save_scene_system.exclusive_system())
+        // .add_startup_system(save_scene_system.exclusive_system())
         .add_startup_system(load_scene_system)
-        .add_startup_system(infotext_system)
         .add_system(log_system)
         .run();
 }
@@ -98,26 +98,4 @@ fn save_scene_system(world: &mut World) {
     info!("{}", scene.serialize_ron(type_registry).unwrap());
 
     // TODO: save scene
-}
-
-// This is only necessary for the info message in the UI. See examples/ui/text.rs for a standalone
-// text example.
-fn infotext_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn_bundle(UiCameraBundle::default());
-    commands.spawn_bundle(TextBundle {
-        style: Style {
-            align_self: AlignSelf::FlexEnd,
-            ..Default::default()
-        },
-        text: Text::with_section(
-            "Nothing to see in this window! Check the console output!",
-            TextStyle {
-                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 50.0,
-                color: Color::WHITE,
-            },
-            Default::default(),
-        ),
-        ..Default::default()
-    });
 }
