@@ -7,6 +7,7 @@ use crate::{
 };
 use bevy_ecs::system::{lifetimeless::SRes, SystemParamItem};
 use bevy_reflect::TypeUuid;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use wgpu::{
     Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, TextureDimension, TextureFormat,
@@ -16,13 +17,24 @@ use wgpu::{
 pub const TEXTURE_ASSET_INDEX: u64 = 0;
 pub const SAMPLER_ASSET_INDEX: u64 = 1;
 
-#[derive(Debug, Clone, TypeUuid)]
+#[derive(Debug, Clone, TypeUuid, Serialize, Deserialize)]
 #[uuid = "6ea26da6-6cf8-4ea2-9986-1d7bf6c17d6f"]
 pub struct Image {
     pub data: Vec<u8>,
     // TODO: this nesting makes accessing Image metadata verbose. Either flatten out descriptor or add accessors
+    #[serde(deserialize_with = "deserialize_texture_descriptor")]
     pub texture_descriptor: wgpu::TextureDescriptor<'static>,
+    #[serde(skip)]
     pub sampler_descriptor: wgpu::SamplerDescriptor<'static>,
+}
+
+fn deserialize_texture_descriptor<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<wgpu::TextureDescriptor<'static>, D::Error> {
+    let td = <wgpu::TextureDescriptor<'de> as serde::Deserialize>::deserialize(deserializer)?;
+    let td = td.map_label(|_| None);
+
+    Ok(td)
 }
 
 impl Default for Image {

@@ -22,7 +22,7 @@ use crate::{
     view::{ViewPlugin, WindowRenderPlugin},
 };
 use bevy_app::{App, AppLabel, Plugin};
-use bevy_asset::AssetServer;
+// use bevy_asset::AssetServer;
 use bevy_ecs::prelude::*;
 use std::ops::{Deref, DerefMut};
 use wgpu::Backends;
@@ -96,7 +96,7 @@ impl Plugin for RenderPlugin {
         app.insert_resource(device.clone())
             .insert_resource(queue.clone())
             .init_resource::<ScratchRenderWorld>();
-        let asset_server = app.world.get_resource::<AssetServer>().unwrap().clone();
+        // let asset_server = app.world.get_resource::<AssetServer>().unwrap().clone();
 
         let mut render_app = App::empty();
         let mut extract_stage = SystemStage::parallel();
@@ -116,7 +116,7 @@ impl Plugin for RenderPlugin {
             .insert_resource(instance)
             .insert_resource(device)
             .insert_resource(queue)
-            .insert_resource(asset_server)
+            // .insert_resource(asset_server)
             .init_resource::<RenderGraph>();
 
         app.add_sub_app(RenderApp, render_app, move |app_world, render_app| {

@@ -799,7 +799,7 @@ impl Draw<Shadow> for DrawShadowMesh {
             &[transform_index.index()],
         );
 
-        let gpu_mesh = meshes.into_inner().get(mesh_handle).unwrap();
+        let gpu_mesh = meshes.into_inner().get(&mesh_handle.clone_weak()).unwrap();
         pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
         if let Some(index_info) = &gpu_mesh.index_info {
             pass.set_index_buffer(index_info.buffer.slice(..), 0, IndexFormat::Uint32);

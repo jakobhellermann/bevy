@@ -1,6 +1,6 @@
 use crate::{RenderApp, RenderStage};
 use bevy_app::{App, Plugin};
-use bevy_asset::{Asset, AssetEvent, Assets, Handle};
+use bevy_asset::{Asset, AssetEvent, Assets, WeakHandle};
 use bevy_ecs::{
     prelude::*,
     system::{lifetimeless::*, RunSystem, SystemParam, SystemParamItem},
@@ -46,8 +46,8 @@ impl<A: RenderAsset> Plugin for RenderAssetPlugin<A> {
 }
 
 pub struct ExtractedAssets<A: RenderAsset> {
-    extracted: Vec<(Handle<A>, A::ExtractedAsset)>,
-    removed: Vec<Handle<A>>,
+    extracted: Vec<(WeakHandle<A>, A::ExtractedAsset)>,
+    removed: Vec<WeakHandle<A>>,
 }
 
 impl<A: RenderAsset> Default for ExtractedAssets<A> {
@@ -59,7 +59,7 @@ impl<A: RenderAsset> Default for ExtractedAssets<A> {
     }
 }
 
-pub type RenderAssets<A> = HashMap<Handle<A>, <A as RenderAsset>::PreparedAsset>;
+pub type RenderAssets<A> = HashMap<WeakHandle<A>, <A as RenderAsset>::PreparedAsset>;
 
 fn extract_render_asset<A: RenderAsset>(
     mut commands: Commands,
@@ -69,16 +69,17 @@ fn extract_render_asset<A: RenderAsset>(
     let mut changed_assets = HashSet::default();
     let mut removed = Vec::new();
     for event in events.iter() {
-        match event {
-            AssetEvent::Created { handle } => {
+        match *event {
+            // TODO: created event
+            /*AssetEvent::Created { handle } => {
                 changed_assets.insert(handle);
-            }
+            }*/
             AssetEvent::Modified { handle } => {
                 changed_assets.insert(handle);
             }
             AssetEvent::Removed { handle } => {
-                if !changed_assets.remove(handle) {
-                    removed.push(handle.clone_weak());
+                if !changed_assets.remove(&handle) {
+                    removed.push(handle);
                 }
             }
         }
@@ -86,8 +87,8 @@ fn extract_render_asset<A: RenderAsset>(
 
     let mut extracted_assets = Vec::new();
     for handle in changed_assets.drain() {
-        if let Some(asset) = assets.get(handle) {
-            extracted_assets.push((handle.clone_weak(), asset.extract_asset()));
+        if let Some(asset) = assets.get(&handle) {
+            extracted_assets.push((handle, asset.extract_asset()));
         }
     }
 
@@ -106,7 +107,7 @@ pub type RenderAssetParams<R> = (
 
 // TODO: consider storing inside system?
 pub struct PrepareNextFrameAssets<A: RenderAsset> {
-    assets: Vec<(Handle<A>, A::ExtractedAsset)>,
+    assets: Vec<(WeakHandle<A>, A::ExtractedAsset)>,
 }
 
 impl<A: RenderAsset> Default for PrepareNextFrameAssets<A> {

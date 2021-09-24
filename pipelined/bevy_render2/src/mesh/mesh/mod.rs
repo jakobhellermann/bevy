@@ -10,6 +10,7 @@ use bevy_ecs::system::{lifetimeless::SRes, SystemParamItem};
 use bevy_math::*;
 use bevy_reflect::TypeUuid;
 use bevy_utils::EnumVariantMeta;
+use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::BTreeMap};
 use wgpu::{
     util::BufferInitDescriptor, BufferUsages, IndexFormat, PrimitiveTopology, VertexFormat,
@@ -19,7 +20,7 @@ pub const INDEX_BUFFER_ASSET_INDEX: u64 = 0;
 pub const VERTEX_ATTRIBUTE_BUFFER_ID: u64 = 10;
 
 // TODO: allow values to be unloaded after been submitting to the GPU to conserve memory
-#[derive(Debug, TypeUuid, Clone)]
+#[derive(Debug, TypeUuid, Clone, Serialize, Deserialize)]
 #[uuid = "8ecbac0f-f545-4473-ad43-e1f4243af51e"]
 pub struct Mesh {
     primitive_topology: PrimitiveTopology,
@@ -321,7 +322,7 @@ impl VertexFormatSize for wgpu::VertexFormat {
 }
 
 /// An array where each entry describes a property of a single vertex.
-#[derive(Clone, Debug, EnumVariantMeta)]
+#[derive(Clone, Debug, EnumVariantMeta, Serialize, Deserialize)]
 pub enum VertexAttributeValues {
     Float32(Vec<f32>),
     Sint32(Vec<i32>),
@@ -476,7 +477,7 @@ impl From<&VertexAttributeValues> for VertexFormat {
 /// An array of indices into the VertexAttributeValues for a mesh.
 ///
 /// It describes the order in which the vertex attributes should be joined into faces.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Indices {
     U16(Vec<u16>),
     U32(Vec<u32>),

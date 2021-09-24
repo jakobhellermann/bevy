@@ -69,7 +69,7 @@ fn setup(
             rotation: Quat::from_rotation_x(-std::f32::consts::PI / 5.0),
             ..Default::default()
         },
-        ..Default::default()
+        global_transform: Default::default(),
     });
     // textured quad - modulated
     commands.spawn_bundle(PbrBundle {
@@ -80,7 +80,7 @@ fn setup(
             rotation: Quat::from_rotation_x(-std::f32::consts::PI / 5.0),
             ..Default::default()
         },
-        ..Default::default()
+        global_transform: Default::default(),
     });
     // textured quad - modulated
     commands.spawn_bundle(PbrBundle {
@@ -91,7 +91,7 @@ fn setup(
             rotation: Quat::from_rotation_x(-std::f32::consts::PI / 5.0),
             ..Default::default()
         },
-        ..Default::default()
+        global_transform: Default::default(),
     });
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {

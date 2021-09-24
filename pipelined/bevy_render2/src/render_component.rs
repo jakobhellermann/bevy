@@ -134,7 +134,7 @@ impl<T: Asset> ExtractComponent for Handle<T> {
 
     #[inline]
     fn extract_component(handle: QueryItem<Self::Query>) -> Self {
-        handle.clone_weak()
+        handle.clone()
     }
 }
 

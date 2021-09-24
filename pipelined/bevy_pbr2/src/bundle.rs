@@ -12,7 +12,7 @@ pub struct PbrBundle {
     pub global_transform: GlobalTransform,
 }
 
-impl Default for PbrBundle {
+/*impl Default for PbrBundle {
     fn default() -> Self {
         Self {
             mesh: Default::default(),
@@ -21,7 +21,7 @@ impl Default for PbrBundle {
             global_transform: Default::default(),
         }
     }
-}
+}*/
 
 /// A component bundle for "point light" entities
 #[derive(Debug, Bundle, Default)]

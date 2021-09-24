@@ -74,7 +74,7 @@ pub fn extract_meshes(
         caster_values.push((
             entity,
             (
-                handle.clone_weak(),
+                handle.clone(),
                 MeshUniform {
                     flags: if not_receiver.is_some() {
                         MeshFlags::empty().bits
@@ -96,7 +96,7 @@ pub fn extract_meshes(
         not_caster_values.push((
             entity,
             (
-                handle.clone_weak(),
+                handle.clone(),
                 MeshUniform {
                     flags: if not_receiver.is_some() {
                         MeshFlags::empty().bits
@@ -564,7 +564,7 @@ pub fn queue_meshes(
             let view_row_2 = view_matrix.row(2);
 
             for (entity, material_handle, mesh_uniform) in standard_material_meshes.iter() {
-                if !render_materials.contains_key(material_handle) {
+                if !render_materials.contains_key(&material_handle.clone_weak()) {
                     continue;
                 }
                 // NOTE: row 2 of the view matrix dotted with column 3 of the model matrix
@@ -663,7 +663,7 @@ impl<const I: usize> RenderCommand<Transparent3d> for SetStandardMaterialBindGro
     ) {
         let handle = handle_query.get(item.entity).unwrap();
         let materials = materials.into_inner();
-        let material = materials.get(handle).unwrap();
+        let material = materials.get(&handle.clone_weak()).unwrap();
 
         pass.set_bind_group(I, &material.bind_group, &[]);
     }
@@ -680,7 +680,7 @@ impl RenderCommand<Transparent3d> for DrawMesh {
         pass: &mut TrackedRenderPass<'w>,
     ) {
         let mesh_handle = mesh_query.get(item.entity).unwrap();
-        let gpu_mesh = meshes.into_inner().get(mesh_handle).unwrap();
+        let gpu_mesh = meshes.into_inner().get(&mesh_handle.clone_weak()).unwrap();
         pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
         if let Some(index_info) = &gpu_mesh.index_info {
             pass.set_index_buffer(index_info.buffer.slice(..), 0, IndexFormat::Uint32);

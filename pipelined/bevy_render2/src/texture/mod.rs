@@ -24,7 +24,11 @@ impl Plugin for ImagePlugin {
     fn build(&self, app: &mut App) {
         #[cfg(feature = "png")]
         {
-            app.init_asset_loader::<ImageTextureLoader>();
+            crate::texture::FILE_EXTENSIONS
+                .iter()
+                .for_each(|(extensions, format)| {
+                    app.add_asset_loader(*extensions, ImageTextureLoader(*format));
+                });
         }
 
         app.add_plugin(RenderAssetPlugin::<Image>::default())

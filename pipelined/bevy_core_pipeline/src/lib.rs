@@ -7,7 +7,7 @@ pub use main_pass_3d::*;
 pub use main_pass_driver::*;
 
 use bevy_app::{App, Plugin};
-use bevy_asset::Handle;
+use bevy_asset::WeakHandle;
 use bevy_core::FloatOrd;
 use bevy_ecs::prelude::*;
 use bevy_render2::{
@@ -153,17 +153,17 @@ impl Plugin for CorePipelinePlugin {
 }
 
 pub struct Transparent2d {
-    pub sort_key: Handle<Image>,
+    pub sort_key: WeakHandle<Image>,
     pub entity: Entity,
     pub draw_function: DrawFunctionId,
 }
 
 impl PhaseItem for Transparent2d {
-    type SortKey = Handle<Image>;
+    type SortKey = WeakHandle<Image>;
 
     #[inline]
     fn sort_key(&self) -> Self::SortKey {
-        self.sort_key.clone_weak()
+        self.sort_key
     }
 
     #[inline]

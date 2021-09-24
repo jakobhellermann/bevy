@@ -175,7 +175,7 @@ pub fn extract_atlases(
                     atlas_size: Some(texture_atlas.size),
                     transform: transform.compute_matrix(),
                     rect,
-                    handle: texture_atlas.texture.clone_weak(),
+                    handle: texture_atlas.texture.clone(),
                     vertex_index: 0,
                 },),
             ));
@@ -205,7 +205,7 @@ pub fn extract_sprites(
                             .custom_size
                             .unwrap_or_else(|| Vec2::new(size.width as f32, size.height as f32)),
                     },
-                    handle: handle.clone_weak(),
+                    handle: handle.clone(),
                     vertex_index: 0,
                 },),
             ));
@@ -349,7 +349,7 @@ pub fn queue_sprites(
                     .values
                     .entry(sprite.handle.clone_weak())
                     .or_insert_with(|| {
-                        let gpu_image = gpu_images.get(&sprite.handle).unwrap();
+                        let gpu_image = gpu_images.get(&sprite.handle.clone_weak()).unwrap();
                         render_device.create_bind_group(&BindGroupDescriptor {
                             entries: &[
                                 BindGroupEntry {
@@ -424,7 +424,7 @@ impl Draw<Transparent2d> for DrawSprite {
             1,
             image_bind_groups
                 .values
-                .get(&extracted_sprite.handle)
+                .get(&extracted_sprite.handle.clone_weak())
                 .unwrap(),
             &[],
         );

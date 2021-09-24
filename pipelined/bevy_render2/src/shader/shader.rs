@@ -1,6 +1,9 @@
-use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
+use bevy_asset::{
+    distill_importer::{ImportedAsset, Importer, ImporterValue},
+    util::AssetUuidImporterState,
+};
 use bevy_reflect::{TypeUuid, Uuid};
-use bevy_utils::{tracing::error, BoxedFuture};
+use bevy_utils::tracing::error;
 use naga::{valid::ModuleInfo, Module};
 use std::{borrow::Cow, marker::Copy};
 use thiserror::Error;
@@ -29,7 +32,7 @@ pub enum ShaderReflectError {
 }
 
 /// A shader, as defined by its [ShaderSource] and [ShaderStage]
-#[derive(Debug, TypeUuid)]
+#[derive(Debug, TypeUuid, serde::Serialize, serde::Deserialize)]
 #[uuid = "d95bc916-6c55-4de3-9622-37e7b6969fda"]
 pub enum Shader {
     Wgsl(Cow<'static, str>),
@@ -107,31 +110,87 @@ impl Shader {
     }
 }
 
-#[derive(Default)]
-pub struct ShaderLoader;
+#[derive(TypeUuid, Default)]
+#[uuid = "779c30ff-566a-4322-9278-111db2b93756"]
+pub struct SpvShaderLoader;
 
-impl AssetLoader for ShaderLoader {
-    fn load<'a>(
-        &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
-        Box::pin(async move {
-            let ext = load_context.path().extension().unwrap().to_str().unwrap();
-
-            let shader = match ext {
-                "spv" => Shader::from_spirv(Vec::from(bytes)),
-                "wgsl" => Shader::from_wgsl(String::from_utf8(Vec::from(bytes))?),
-                _ => panic!("unhandled extension: {}", ext),
-            };
-
-            load_context.set_default_asset(LoadedAsset::new(shader));
-            Ok(())
-        })
+impl Importer for SpvShaderLoader {
+    fn version_static() -> u32
+    where
+        Self: Sized,
+    {
+        1
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["spv", "wgsl"]
+    fn version(&self) -> u32 {
+        Self::version_static()
+    }
+
+    type Options = ();
+    type State = AssetUuidImporterState;
+
+    fn import(
+        &self,
+        _: &mut bevy_asset::distill_importer::ImportOp,
+        source: &mut dyn std::io::Read,
+        _: &Self::Options,
+        state: &mut Self::State,
+    ) -> bevy_asset::distill_importer::Result<ImporterValue> {
+        let mut bytes = Vec::new();
+        source.read_to_end(&mut bytes)?;
+        let shader = Shader::from_spirv(bytes);
+        Ok(ImporterValue {
+            assets: vec![ImportedAsset {
+                id: state.id(),
+                search_tags: vec![],
+                build_deps: vec![],
+                load_deps: vec![],
+                build_pipeline: None,
+                asset_data: Box::new(shader),
+            }],
+        })
+    }
+}
+
+#[derive(TypeUuid, Default)]
+#[uuid = "c0b3811a-e22e-453a-af33-19b9337e89e1"]
+pub struct WgslShaderLoader;
+
+impl Importer for WgslShaderLoader {
+    fn version_static() -> u32
+    where
+        Self: Sized,
+    {
+        1
+    }
+
+    fn version(&self) -> u32 {
+        Self::version_static()
+    }
+
+    type Options = ();
+    type State = AssetUuidImporterState;
+
+    fn import(
+        &self,
+        _: &mut bevy_asset::distill_importer::ImportOp,
+        source: &mut dyn std::io::Read,
+        _: &Self::Options,
+        state: &mut Self::State,
+    ) -> bevy_asset::distill_importer::Result<ImporterValue> {
+        let mut wgsl = String::new();
+        source.read_to_string(&mut wgsl)?;
+        let shader = Shader::from_wgsl(wgsl);
+        Ok(ImporterValue {
+            assets: vec![ImportedAsset {
+                id: state.id(),
+                search_tags: vec![],
+                build_deps: vec![],
+                load_deps: vec![],
+                build_pipeline: None,
+                asset_data: Box::new(shader),
+            }],
+        })
     }
 }
 

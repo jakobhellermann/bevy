@@ -1,58 +1,67 @@
-use anyhow::Result;
-use bevy_asset::{AssetLoader, LoadContext, LoadedAsset};
-use bevy_utils::BoxedFuture;
-use thiserror::Error;
+use bevy_asset::{
+    distill_importer::{ImportedAsset, Importer, ImporterValue},
+    util::AssetUuidImporterState,
+};
+use bevy_reflect::TypeUuid;
+use image::ImageFormat;
 
-use crate::texture::{Image, ImageType, TextureError};
+use crate::texture::image_texture_conversion::image_to_texture;
 
 /// Loader for images that can be read by the `image` crate.
-#[derive(Clone, Default)]
-pub struct ImageTextureLoader;
+#[derive(Clone, TypeUuid)]
+#[uuid = "42d33fcd-1518-4689-9d66-ffc19e92bbfa"]
+pub struct ImageTextureLoader(pub ImageFormat);
 
-const FILE_EXTENSIONS: &[&str] = &["png", "dds", "tga", "jpg", "jpeg", "bmp"];
+impl Importer for ImageTextureLoader {
+    fn version_static() -> u32
+    where
+        Self: Sized,
+    {
+        1
+    }
 
-impl AssetLoader for ImageTextureLoader {
-    fn load<'a>(
-        &'a self,
-        bytes: &'a [u8],
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<()>> {
-        Box::pin(async move {
-            // use the file extension for the image type
-            let ext = load_context.path().extension().unwrap().to_str().unwrap();
+    fn version(&self) -> u32 {
+        Self::version_static()
+    }
 
-            let dyn_img = Image::from_buffer(bytes, ImageType::Extension(ext)).map_err(|err| {
-                FileTextureError {
-                    error: err,
-                    path: format!("{}", load_context.path().display()),
-                }
-            })?;
+    type Options = ();
+    type State = AssetUuidImporterState;
 
-            load_context.set_default_asset(LoadedAsset::new(dyn_img));
-            Ok(())
+    fn import(
+        &self,
+        _: &mut bevy_asset::distill_importer::ImportOp,
+        source: &mut dyn std::io::Read,
+        _: &Self::Options,
+        state: &mut Self::State,
+    ) -> bevy_asset::distill_importer::Result<ImporterValue> {
+        let mut buf = Vec::new();
+        source.read_to_end(&mut buf)?;
+
+        let dyn_image = image::load_from_memory_with_format(&buf, self.0)
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+        let image = image_to_texture(dyn_image);
+
+        Ok(ImporterValue {
+            assets: vec![ImportedAsset {
+                id: state.id(),
+                search_tags: vec![],
+                build_deps: vec![],
+                load_deps: vec![],
+                build_pipeline: None,
+                asset_data: Box::new(image),
+            }],
         })
     }
-
-    fn extensions(&self) -> &[&str] {
-        FILE_EXTENSIONS
-    }
 }
 
-/// An error that occurs when loading a texture from a file
-#[derive(Error, Debug)]
-pub struct FileTextureError {
-    error: TextureError,
-    path: String,
-}
-impl std::fmt::Display for FileTextureError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        write!(
-            f,
-            "Error reading image file {}: {}, this is an error in `bevy_render`.",
-            self.path, self.error
-        )
-    }
-}
+#[allow(dead_code)]
+pub(crate) const FILE_EXTENSIONS: &[(&[&str], ImageFormat)] = &[
+    (&["png"], ImageFormat::Png),
+    (&["dds"], ImageFormat::Dds),
+    (&["tga"], ImageFormat::Tga),
+    (&["jpg", "jpeg"], ImageFormat::Jpeg),
+    (&["bmp"], ImageFormat::Bmp),
+];
 
 #[cfg(test)]
 mod tests {

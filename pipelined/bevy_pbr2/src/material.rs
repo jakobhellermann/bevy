@@ -133,7 +133,7 @@ pub struct StandardMaterialPlugin;
 impl Plugin for StandardMaterialPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(RenderAssetPlugin::<StandardMaterial>::default())
-            .add_asset::<StandardMaterial>();
+            .add_asset_non_deserialize::<StandardMaterial>();
     }
 }
 
@@ -280,7 +280,7 @@ fn image_handle_to_view_sampler<'a>(
     handle_option: &Option<Handle<Image>>,
 ) -> Option<(&'a TextureView, &'a Sampler)> {
     if let Some(handle) = handle_option {
-        let gpu_image = gpu_images.get(handle)?;
+        let gpu_image = gpu_images.get(&handle.clone_weak())?;
         Some((&gpu_image.texture_view, &gpu_image.sampler))
     } else {
         Some((
