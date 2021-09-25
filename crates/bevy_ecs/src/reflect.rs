@@ -17,6 +17,24 @@ pub struct ReflectComponent {
 }
 
 impl ReflectComponent {
+    pub fn new<C: Reflect + Component>(
+        add_component: fn(&mut World, Entity, &dyn Reflect),
+        apply_component: fn(&mut World, Entity, &dyn Reflect),
+        remove_component: fn(&mut World, Entity),
+        reflect_component: fn(&World, Entity) -> Option<&dyn Reflect>,
+        reflect_component_mut: unsafe fn(&World, Entity) -> Option<ReflectMut>,
+        copy_component: fn(&World, &mut World, Entity, Entity),
+    ) -> ReflectComponent {
+        ReflectComponent {
+            add_component,
+            apply_component,
+            remove_component,
+            reflect_component,
+            reflect_component_mut,
+            copy_component,
+        }
+    }
+
     pub fn add_component(&self, world: &mut World, entity: Entity, component: &dyn Reflect) {
         (self.add_component)(world, entity, component);
     }

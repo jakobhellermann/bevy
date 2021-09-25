@@ -186,5 +186,13 @@ pub struct ReflectMut<'a> {
     pub(crate) value: &'a mut dyn Reflect,
     pub(crate) ticks: Ticks<'a>,
 }
+impl<'a> ReflectMut<'a> {
+    pub fn from_mut<T: Reflect>(val: Mut<'a, T>) -> Self {
+        ReflectMut {
+            value: val.value as &mut dyn Reflect,
+            ticks: val.ticks,
+        }
+    }
+}
 
 change_detection_impl!(ReflectMut<'a>, dyn Reflect,);
