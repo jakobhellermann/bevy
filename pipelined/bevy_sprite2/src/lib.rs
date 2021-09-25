@@ -24,7 +24,8 @@ pub struct SpritePlugin;
 
 impl Plugin for SpritePlugin {
     fn build(&self, app: &mut App) {
-        app.add_asset::<TextureAtlas>().register_type::<Sprite>();
+        app.add_asset_non_deserialize::<TextureAtlas>()
+            .register_type::<Sprite>();
         let render_app = app.sub_app(RenderApp);
         render_app
             .init_resource::<ImageBindGroups>()

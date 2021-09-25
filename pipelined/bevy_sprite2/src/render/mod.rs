@@ -2,7 +2,7 @@ use crate::{
     texture_atlas::{TextureAtlas, TextureAtlasSprite},
     Rect, Sprite,
 };
-use bevy_asset::{Assets, Handle};
+use bevy_asset::{Assets, Handle, WeakHandle};
 use bevy_core_pipeline::Transparent2d;
 use bevy_ecs::{
     prelude::*,
@@ -318,7 +318,7 @@ pub fn prepare_sprites(
 
 #[derive(Default)]
 pub struct ImageBindGroups {
-    values: HashMap<Handle<Image>, BindGroup>,
+    values: HashMap<WeakHandle<Image>, BindGroup>,
 }
 
 #[allow(clippy::too_many_arguments)]

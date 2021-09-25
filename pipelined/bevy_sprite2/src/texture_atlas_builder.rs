@@ -212,7 +212,7 @@ impl TextureAtlasBuilder {
                     packed_location.width() as f32,
                     packed_location.height() as f32,
                 );
-            texture_handles.insert(texture_handle.clone_weak(), texture_rects.len());
+            texture_handles.insert(texture_handle.clone(), texture_rects.len());
             texture_rects.push(Rect { min, max });
             if texture.texture_descriptor.format != self.format && !self.auto_format_conversion {
                 warn!(

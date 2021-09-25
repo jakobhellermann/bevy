@@ -15,7 +15,7 @@ pub struct PipelinedSpriteBundle {
     pub texture: Handle<Image>,
 }
 
-impl Default for PipelinedSpriteBundle {
+/*impl Default for PipelinedSpriteBundle {
     fn default() -> Self {
         Self {
             sprite: Default::default(),
@@ -24,7 +24,7 @@ impl Default for PipelinedSpriteBundle {
             texture: Default::default(),
         }
     }
-}
+}*/
 
 /// A Bundle of components for drawing a single sprite from a sprite sheet (also referred
 /// to as a `TextureAtlas`)
@@ -39,7 +39,7 @@ pub struct PipelinedSpriteSheetBundle {
     pub global_transform: GlobalTransform,
 }
 
-impl Default for PipelinedSpriteSheetBundle {
+/*impl Default for PipelinedSpriteSheetBundle {
     fn default() -> Self {
         Self {
             sprite: Default::default(),
@@ -48,4 +48,4 @@ impl Default for PipelinedSpriteSheetBundle {
             global_transform: Default::default(),
         }
     }
-}
+}*/
