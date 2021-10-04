@@ -12,6 +12,10 @@ repository = "https://github.com/bevyengine/bevy"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy"]
 
+[features]
+default = ["smaa-antialiasing"]
+smaa-antialiasing = ["smaa"]
+
 [dependencies]
 # bevy
 bevy_app = { path = "../../crates/bevy_app", version = "0.5.0" }
@@ -20,3 +24,4 @@ bevy_core = { path = "../../crates/bevy_core", version = "0.5.0" }
 bevy_ecs = { path = "../../crates/bevy_ecs", version = "0.5.0" }
 bevy_render2 = { path = "../bevy_render2", version = "0.5.0" }
 
+smaa = { git = "https://github.com/jakobhellermann/smaa-rs", branch = "bevy-texture-view", features = ["bevy"], optional = true }

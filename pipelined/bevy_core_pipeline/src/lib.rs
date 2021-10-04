@@ -85,6 +85,8 @@ impl Plugin for CorePipelinePlugin {
 
         let pass_node_2d = MainPass2dNode::new(&mut render_app.world);
         let pass_node_3d = MainPass3dNode::new(&mut render_app.world);
+        let main_pass_driver_node = MainPassDriverNode::new(&mut render_app.world);
+
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
 
         let mut draw_2d_graph = RenderGraph::default();
@@ -145,7 +147,7 @@ impl Plugin for CorePipelinePlugin {
         graph.add_sub_graph(draw_3d_graph::NAME, draw_3d_graph);
 
         graph.add_node(node::MAIN_PASS_DEPENDENCIES, EmptyNode);
-        graph.add_node(node::MAIN_PASS_DRIVER, MainPassDriverNode);
+        graph.add_node(node::MAIN_PASS_DRIVER, main_pass_driver_node);
         graph
             .add_node_edge(node::MAIN_PASS_DEPENDENCIES, node::MAIN_PASS_DRIVER)
             .unwrap();
