@@ -1,121 +1,65 @@
 mod asset_server;
-mod assets;
-pub mod diagnostic;
-#[cfg(all(
-    feature = "filesystem_watcher",
-    all(not(target_arch = "wasm32"), not(target_os = "android"))
-))]
-mod filesystem_watcher;
 mod handle;
-mod info;
-mod io;
-mod loader;
-mod path;
+pub mod importer;
+mod plugin;
+mod storage;
+pub mod util;
+
+pub use asset_server::AssetServer;
+use bevy_reflect::TypeUuid;
+
+use distill_core::TypeUuidDynamic;
+
+pub use distill_importer;
+pub use handle::{Handle, HandleUntyped, WeakHandle};
+pub use plugin::{AddAsset, AssetPlugin, AssetStage};
+pub use storage::Assets;
 
 pub mod prelude {
-    #[doc(hidden)]
-    pub use crate::{AddAsset, AssetEvent, AssetServer, Assets, Handle, HandleUntyped};
+    pub use crate::handle::{Handle, HandleUntyped, WeakHandle};
+    #[cfg(feature = "asset-daemon")]
+    pub use crate::plugin::AssetDaemonSettings;
+    #[cfg(feature = "packfile")]
+    pub use crate::plugin::PackfileSettings;
+    pub use crate::plugin::{AddAsset, AssetPlugin, AssetServerSettings};
+    pub use crate::{Asset, AssetEvent, AssetServer, Assets};
+
+    pub use bevy_reflect::TypeUuid;
+
+    pub use serde::{Deserialize, Serialize};
 }
 
-pub use asset_server::*;
-pub use assets::*;
-pub use bevy_utils::BoxedFuture;
-pub use handle::*;
-pub use info::*;
-pub use io::*;
-pub use loader::*;
-pub use path::*;
+pub trait Asset: TypeUuid + AssetDynamic {}
 
-use bevy_app::{prelude::Plugin, App};
-use bevy_ecs::{
-    schedule::{StageLabel, SystemStage},
-    system::IntoSystem,
-};
-use bevy_tasks::IoTaskPool;
+pub trait AssetDynamic: TypeUuidDynamic + Send + Sync + 'static {}
 
-/// The names of asset stages in an App Schedule
-#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
-pub enum AssetStage {
-    LoadAssets,
-    AssetEvents,
+impl<T> Asset for T where T: TypeUuid + AssetDynamic + TypeUuidDynamic {}
+
+impl<T> AssetDynamic for T where T: Send + Sync + 'static + TypeUuidDynamic {}
+
+/// Events that happen on assets of type `T`
+pub enum AssetEvent<A: Asset> {
+    Modified { handle: WeakHandle<A> },
+    Removed { handle: WeakHandle<A> },
 }
-
-/// Adds support for Assets to an App. Assets are typed collections with change tracking, which are
-/// added as App Resources. Examples of assets: textures, sounds, 3d models, maps, scenes
-#[derive(Default)]
-pub struct AssetPlugin;
-
-pub struct AssetServerSettings {
-    pub asset_folder: String,
-}
-
-impl Default for AssetServerSettings {
-    fn default() -> Self {
-        Self {
-            asset_folder: "assets".to_string(),
+impl<A: Asset> AssetEvent<A> {
+    pub fn handle(&self) -> &WeakHandle<A> {
+        match self {
+            AssetEvent::Modified { handle } => handle,
+            AssetEvent::Removed { handle } => handle,
         }
     }
 }
 
-/// Create an instance of the platform default `AssetIo`
-///
-/// This is useful when providing a custom `AssetIo` instance that needs to
-/// delegate to the default `AssetIo` for the platform.
-pub fn create_platform_default_asset_io(app: &mut App) -> Box<dyn AssetIo> {
-    let settings = app
-        .world
-        .get_resource_or_insert_with(AssetServerSettings::default);
-
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
-    let source = FileAssetIo::new(&settings.asset_folder);
-    #[cfg(target_arch = "wasm32")]
-    let source = WasmAssetIo::new(&settings.asset_folder);
-    #[cfg(target_os = "android")]
-    let source = AndroidAssetIo::new(&settings.asset_folder);
-
-    Box::new(source)
-}
-
-impl Plugin for AssetPlugin {
-    fn build(&self, app: &mut App) {
-        if app.world.get_resource::<AssetServer>().is_none() {
-            let task_pool = app
-                .world
-                .get_resource::<IoTaskPool>()
-                .expect("`IoTaskPool` resource not found.")
-                .0
-                .clone();
-
-            let source = create_platform_default_asset_io(app);
-
-            let asset_server = AssetServer::with_boxed_io(source, task_pool);
-
-            app.insert_resource(asset_server);
-        }
-
-        app.add_stage_before(
-            bevy_app::CoreStage::PreUpdate,
-            AssetStage::LoadAssets,
-            SystemStage::parallel(),
-        )
-        .add_stage_after(
-            bevy_app::CoreStage::PostUpdate,
-            AssetStage::AssetEvents,
-            SystemStage::parallel(),
-        )
-        .register_type::<HandleId>()
-        .add_system_to_stage(
-            bevy_app::CoreStage::PreUpdate,
-            asset_server::free_unused_assets_system.system(),
-        );
-
-        #[cfg(all(
-            feature = "filesystem_watcher",
-            all(not(target_arch = "wasm32"), not(target_os = "android"))
-        ))]
-        app.add_system_to_stage(
-            AssetStage::LoadAssets,
-            io::filesystem_watcher_system.system(),
-        );
+impl<A: Asset> std::fmt::Debug for AssetEvent<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let variant = match self {
+            AssetEvent::Modified { .. } => "Modified",
+            AssetEvent::Removed { .. } => "Removed",
+        };
+        let name = format!("AssetEvent<{}>::{}", std::any::type_name::<A>(), variant);
+        f.debug_struct(&name)
+            .field("handle", self.handle())
+            .finish()
     }
 }

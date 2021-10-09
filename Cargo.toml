@@ -557,3 +557,16 @@ icon = "@mipmap/ic_launcher"
 build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
 min_sdk_version = 16
 target_sdk_version = 29
+
+[patch."https://github.com/amethyst/distill"]
+distill-core = { git = "https://github.com/jakobhellermann/distill", branch = "dev" }
+distill-loader = { git = "https://github.com/jakobhellermann/distill", branch = "dev" }
+distill-importer = { git = "https://github.com/jakobhellermann/distill", branch = "dev" }
+distill-daemon = { git = "https://github.com/jakobhellermann/distill", branch = "dev" }
+
+[patch."https://github.com/bevyengine/bevy"]
+bevy_ecs = { path = "/home/jakob/dev/rust/contrib/bevy/bevy/crates/bevy_ecs" }
+bevy_app = { path = "/home/jakob/dev/rust/contrib/bevy/bevy/crates/bevy_app" }
+bevy_reflect = { path = "/home/jakob/dev/rust/contrib/bevy/bevy/crates/bevy_reflect" }
+bevy_utils = { path = "/home/jakob/dev/rust/contrib/bevy/bevy/crates/bevy_utils" }
+bevy_log = { path = "/home/jakob/dev/rust/contrib/bevy/bevy/crates/bevy_log" }

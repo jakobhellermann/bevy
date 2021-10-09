@@ -1,0 +1,5 @@
+/Cargo.lock
+/target
+
+/.assets_db
+/target_web

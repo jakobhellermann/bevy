@@ -1,50 +1,74 @@
 [package]
 name = "bevy_asset"
+license = "MIT OR Apache-2.0"
 version = "0.5.0"
 edition = "2021"
-authors = [
-    "Bevy Contributors <bevyengine@gmail.com>",
-    "Carter Anderson <mcanders1@gmail.com>",
-]
-description = "Provides asset functionality for Bevy Engine"
-homepage = "https://bevyengine.org"
-repository = "https://github.com/bevyengine/bevy"
-license = "MIT OR Apache-2.0"
-keywords = ["bevy"]
 
 [features]
-default = ["filesystem_watcher"]
-filesystem_watcher = ["notify"]
+asset-daemon = ["distill-daemon", "rpc-io"]
+packfile = ["distill-loader/packfile_io"]
+rpc-io = ["distill-loader/rpc_io"]
+ron-importer = ["ron"]
 
 [dependencies]
-# bevy
-bevy_app = { path = "../bevy_app", version = "0.5.0" }
-bevy_diagnostic = { path = "../bevy_diagnostic", version = "0.5.0" }
-bevy_ecs = { path = "../bevy_ecs", version = "0.5.0" }
-bevy_log = { path = "../bevy_log", version = "0.5.0" }
-bevy_reflect = { path = "../bevy_reflect", version = "0.5.0", features = ["bevy"] }
-bevy_tasks = { path = "../bevy_tasks", version = "0.5.0" }
-bevy_utils = { path = "../bevy_utils", version = "0.5.0" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
+bevy_app = { git = "https://github.com/bevyengine/bevy" }
+bevy_reflect = { git = "https://github.com/bevyengine/bevy", features = ["bevy"] }
+bevy_utils = { git = "https://github.com/bevyengine/bevy" }
+bevy_log = { git = "https://github.com/bevyengine/bevy" }
 
-# other
-serde = { version = "1", features = ["derive"] }
-crossbeam-channel = "0.5.0"
-anyhow = "1.0.4"
-thiserror = "1.0"
-downcast-rs = "1.2.0"
-notify = { version = "=5.0.0-pre.10", optional = true }
-parking_lot = "0.11.0"
-rand = "0.8.0"
+distill-core = { git = "https://github.com/jakobhellermann/distill", branch = "dev", features = ["bevy_reflect"] }
+distill-loader = { git = "https://github.com/jakobhellermann/distill", branch = "dev", features = ["handle"] }
+distill-importer = { git = "https://github.com/jakobhellermann/distill", branch = "dev" }
+distill-daemon = { git = "https://github.com/jakobhellermann/distill", branch = "dev", optional = true }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = { version = "0.2" }
-web-sys = { version = "0.3", features = ["Request", "Window", "Response"]}
-wasm-bindgen-futures = "0.4"
-js-sys = "0.3"
+serde = "1.0"
+bincode = "1.3"
+futures-executor = "0.3"
+uuid = "0.8"
 
-[target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = { version = "0.2" }
+ron = { version = "0.6", optional = true }
 
 [dev-dependencies]
-futures-lite = "1.4.0"
-tempfile = "3.2.0"
+image = { version = "0.23", default-features = false, features = ["png"] }
+tracing-subscriber = "0.2"
+tracing = "0.1"
+tracing-log = "0.1"
+ron = "0.6"
+bevy_core = { git = "https://github.com/bevyengine/bevy" }
+
+[[example]]
+name = "custom_asset"
+required-features = ["ron-importer", "rpc-io"]
+
+[[example]]
+name = "load_status"
+required-features = ["ron-importer", "rpc-io"]
+
+[[example]]
+name = "custom_asset_packfile"
+required-features = ["packfile"]
+
+[[example]]
+name = "custom_asset_loader"
+required-features = ["rpc-io"]
+
+[[example]]
+name = "load_material"
+required-features = ["ron-importer", "rpc-io"]
+
+[[example]]
+name = "deserialize_handle"
+required-features = ["ron-importer", "rpc-io"]
+
+[[example]]
+name = "scene_inline_assets"
+required-features = ["ron-importer", "rpc-io"]
+
+[[example]]
+name = "run_asset_daemon"
+required-features = ["asset-daemon"]
+
+[[example]]
+name = "reflect_component"
+required-features = ["rpc-io"]
