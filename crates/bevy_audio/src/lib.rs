@@ -30,6 +30,15 @@ impl Plugin for AudioPlugin {
             );
 
         #[cfg(any(feature = "mp3", feature = "flac", feature = "wav", feature = "vorbis"))]
-        app.init_asset_loader::<Mp3Loader>();
+        app.init_asset_loader::<Mp3Loader>(&[
+            #[cfg(feature = "mp3")]
+            "mp3",
+            #[cfg(feature = "flac")]
+            "flac",
+            #[cfg(feature = "wav")]
+            "wav",
+            #[cfg(feature = "vorbis")]
+            "ogg",
+        ]);
     }
 }
