@@ -56,10 +56,6 @@ fn load_scene_system(asset_server: Res<AssetServer>, mut scene_spawner: ResMut<S
     // the World with new entity ids. This guarantees that it will not overwrite existing
     // entities.
     scene_spawner.spawn_dynamic(scene_handle);
-
-    // This tells the AssetServer to watch for changes to assets.
-    // It enables our scenes to automatically reload in game when we modify their files
-    asset_server.watch_for_changes().unwrap();
 }
 
 // This system logs all ComponentA components in our world. Try making a change to a ComponentA in

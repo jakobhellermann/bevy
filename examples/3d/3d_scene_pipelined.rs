@@ -44,7 +44,8 @@ fn setup(
             perceptual_roughness: 1.0,
             ..Default::default()
         }),
-        ..Default::default()
+        transform: Default::default(),
+        global_transform: Default::default(),
     });
 
     // left wall
@@ -58,7 +59,7 @@ fn setup(
             perceptual_roughness: 1.0,
             ..Default::default()
         }),
-        ..Default::default()
+        global_transform: Default::default(),
     });
     // back (right) wall
     let mut transform = Transform::from_xyz(0.0, 2.5, -2.5);
@@ -71,7 +72,7 @@ fn setup(
             perceptual_roughness: 1.0,
             ..Default::default()
         }),
-        ..Default::default()
+        global_transform: Default::default(),
     });
 
     // cube
@@ -83,7 +84,7 @@ fn setup(
                 ..Default::default()
             }),
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
-            ..Default::default()
+            global_transform: Default::default(),
         })
         .insert(Movable);
     // sphere
@@ -98,7 +99,7 @@ fn setup(
                 ..Default::default()
             }),
             transform: Transform::from_xyz(1.5, 1.0, 1.5),
-            ..Default::default()
+            global_transform: Default::default(),
         })
         .insert(Movable);
 
@@ -131,7 +132,8 @@ fn setup(
                     emissive: Color::rgba_linear(100.0, 0.0, 0.0, 0.0),
                     ..Default::default()
                 }),
-                ..Default::default()
+                transform: Default::default(),
+                global_transform: Default::default(),
             });
         });
 
@@ -158,7 +160,8 @@ fn setup(
                     emissive: Color::rgba_linear(0.0, 100.0, 0.0, 0.0),
                     ..Default::default()
                 }),
-                ..Default::default()
+                transform: Default::default(),
+                global_transform: Default::default(),
             });
         });
 
@@ -172,7 +175,7 @@ fn setup(
                 color: Color::BLUE,
                 ..Default::default()
             },
-            ..Default::default()
+            global_transform: Default::default(),
         })
         .with_children(|builder| {
             builder.spawn_bundle(PbrBundle {
@@ -185,7 +188,8 @@ fn setup(
                     emissive: Color::rgba_linear(0.0, 0.0, 100.0, 0.0),
                     ..Default::default()
                 }),
-                ..Default::default()
+                transform: Default::default(),
+                global_transform: Default::default(),
             });
         });
 
