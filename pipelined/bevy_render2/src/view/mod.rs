@@ -9,10 +9,11 @@ use wgpu::{
 pub use window::*;
 
 use crate::{
-    camera::{ExtractedCamera, ExtractedCameraNames},
+    camera::{CameraTarget, ExtractedCamera, ExtractedCameraNames},
+    render_asset::{RenderAssetSystem, RenderAssets},
     render_resource::{DynamicUniformVec, Texture, TextureView},
     renderer::{RenderDevice, RenderQueue},
-    texture::{BevyDefault, TextureCache},
+    texture::{BevyDefault, Image, TextureCache},
     RenderApp, RenderStage,
 };
 use bevy_app::{App, Plugin};
@@ -33,7 +34,9 @@ impl Plugin for ViewPlugin {
             .add_system_to_stage(RenderStage::Prepare, prepare_view_uniforms)
             .add_system_to_stage(
                 RenderStage::Prepare,
-                prepare_view_targets.after(WindowSystem::Prepare),
+                prepare_view_targets
+                    .after(WindowSystem::Prepare)
+                    .after(RenderAssetSystem::<Image>::Prepare),
             );
     }
 }
@@ -139,26 +142,32 @@ fn prepare_view_targets(
     mut commands: Commands,
     camera_names: Res<ExtractedCameraNames>,
     windows: Res<ExtractedWindows>,
+    gpu_images: Res<RenderAssets<Image>>,
     msaa: Res<Msaa>,
     render_device: Res<RenderDevice>,
     mut texture_cache: ResMut<TextureCache>,
     cameras: Query<&ExtractedCamera>,
+    views: Query<&ExtractedView>,
 ) {
     for entity in camera_names.entities.values().copied() {
-        let camera = if let Ok(camera) = cameras.get(entity) {
-            camera
-        } else {
-            continue;
+        let camera = match cameras.get(entity) {
+            Ok(camera) => camera,
+            Err(_) => continue,
         };
-        let window = if let Some(window) = windows.get(&camera.window_id) {
-            window
-        } else {
-            continue;
+        let view = match views.get(entity) {
+            Ok(view) => view,
+            Err(_) => continue,
         };
-        let swap_chain_texture = if let Some(texture) = &window.swap_chain_texture {
-            texture
-        } else {
-            continue;
+
+        let texture_view = match &camera.target {
+            CameraTarget::Window(window_id) => windows
+                .get(window_id)
+                .and_then(|window| window.swap_chain_texture.as_ref()),
+            CameraTarget::Texture(texture) => gpu_images.get(texture).map(|img| &img.texture_view),
+        };
+        let texture_view = match texture_view {
+            Some(texture) => texture,
+            None => continue,
         };
         let sampled_target = if msaa.samples > 1 {
             let sampled_texture = texture_cache.get(
@@ -166,8 +175,8 @@ fn prepare_view_targets(
                 TextureDescriptor {
                     label: Some("sampled_color_attachment_texture"),
                     size: Extent3d {
-                        width: window.physical_width,
-                        height: window.physical_height,
+                        width: view.width,
+                        height: view.height,
                         depth_or_array_layers: 1,
                     },
                     mip_level_count: 1,
@@ -183,7 +192,7 @@ fn prepare_view_targets(
         };
 
         commands.entity(entity).insert(ViewTarget {
-            view: swap_chain_texture.clone(),
+            view: texture_view.clone(),
             sampled_target,
         });
     }

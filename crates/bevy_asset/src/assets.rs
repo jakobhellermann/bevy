@@ -46,6 +46,16 @@ impl<T: Asset> Debug for AssetEvent<T> {
     }
 }
 
+impl<T: Asset> AssetEvent<T> {
+    pub fn handle(&self) -> &Handle<T> {
+        match self {
+            AssetEvent::Created { handle } => handle,
+            AssetEvent::Modified { handle } => handle,
+            AssetEvent::Removed { handle } => handle,
+        }
+    }
+}
+
 /// Stores Assets of a given type and tracks changes to them.
 #[derive(Debug)]
 pub struct Assets<T: Asset> {

@@ -60,8 +60,56 @@ impl<A: RenderAsset> Plugin for RenderAssetPlugin<A> {
             .init_resource::<ExtractedAssets<A>>()
             .init_resource::<RenderAssets<A>>()
             .init_resource::<PrepareNextFrameAssets<A>>()
-            .add_system_to_stage(RenderStage::Extract, extract_render_asset::<A>)
-            .add_system_to_stage(RenderStage::Prepare, prepare_asset_system);
+            .add_system_to_stage(
+                RenderStage::Extract,
+                extract_render_asset::<A>.label(RenderAssetSystem::<A>::Extract),
+            )
+            .add_system_to_stage(
+                RenderStage::Prepare,
+                prepare_asset_system.label(RenderAssetSystem::<A>::Prepare),
+            );
+    }
+}
+
+#[derive(SystemLabel)]
+pub enum RenderAssetSystem<A: RenderAsset> {
+    Prepare,
+    Extract,
+    #[doc(hidden)]
+    _Marker(PhantomData<A>),
+}
+
+impl<A: RenderAsset> Clone for RenderAssetSystem<A> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Prepare => Self::Prepare,
+            Self::Extract => Self::Extract,
+            Self::_Marker(_) => Self::_Marker(PhantomData),
+        }
+    }
+}
+
+impl<A: RenderAsset> std::fmt::Debug for RenderAssetSystem<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Prepare => write!(f, "Prepare"),
+            Self::Extract => write!(f, "Extract"),
+            Self::_Marker(_) => f.debug_tuple("_Marker").finish(),
+        }
+    }
+}
+
+impl<A: RenderAsset> Eq for RenderAssetSystem<A> {}
+
+impl<A: RenderAsset> PartialEq for RenderAssetSystem<A> {
+    fn eq(&self, other: &Self) -> bool {
+        core::mem::discriminant(self) == core::mem::discriminant(other)
+    }
+}
+
+impl<A: RenderAsset> std::hash::Hash for RenderAssetSystem<A> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
     }
 }
 
