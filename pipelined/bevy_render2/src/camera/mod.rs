@@ -84,6 +84,10 @@ fn extract_cameras(
         {
             entities.insert(name.clone(), entity);
             if let Some(window) = windows.get(camera.window) {
+                let (width, height) = match camera.resolution {
+                    Some(resolution) => (resolution.x, resolution.y),
+                    None => (window.physical_width(), window.physical_height()),
+                };
                 commands.get_or_spawn(entity).insert_bundle((
                     ExtractedCamera {
                         window_id: camera.window,
@@ -92,8 +96,8 @@ fn extract_cameras(
                     ExtractedView {
                         projection: camera.projection_matrix,
                         transform: *transform,
-                        width: window.physical_width().max(1),
-                        height: window.physical_height().max(1),
+                        width,
+                        height,
                         near: camera.near,
                         far: camera.far,
                     },

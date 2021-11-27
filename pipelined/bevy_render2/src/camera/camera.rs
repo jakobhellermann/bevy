@@ -8,7 +8,7 @@ use bevy_ecs::{
     reflect::ReflectComponent,
     system::{QuerySet, Res},
 };
-use bevy_math::{Mat4, Vec2, Vec3};
+use bevy_math::{Mat4, UVec2, Vec2, Vec3};
 use bevy_reflect::{Reflect, ReflectDeserialize};
 use bevy_transform::components::GlobalTransform;
 use bevy_window::{WindowCreated, WindowId, WindowResized, Windows};
@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 pub struct Camera {
     pub projection_matrix: Mat4,
     pub name: Option<String>,
+    pub resolution: Option<UVec2>,
     #[reflect(ignore)]
     pub window: WindowId,
     #[reflect(ignore)]

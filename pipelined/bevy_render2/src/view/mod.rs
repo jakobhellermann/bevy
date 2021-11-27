@@ -156,19 +156,13 @@ fn prepare_view_uniforms(
 
 fn prepare_view_targets(
     mut commands: Commands,
-    camera_names: Res<ExtractedCameraNames>,
     windows: Res<ExtractedWindows>,
     msaa: Res<Msaa>,
     render_device: Res<RenderDevice>,
     mut texture_cache: ResMut<TextureCache>,
-    cameras: Query<&ExtractedCamera>,
+    cameras: Query<(Entity, &ExtractedCamera, &ExtractedView)>,
 ) {
-    for entity in camera_names.entities.values().copied() {
-        let camera = if let Ok(camera) = cameras.get(entity) {
-            camera
-        } else {
-            continue;
-        };
+    for (entity, camera, view) in cameras.iter() {
         let window = if let Some(window) = windows.get(&camera.window_id) {
             window
         } else {
@@ -180,14 +174,14 @@ fn prepare_view_targets(
             continue;
         };
 
-        let view = texture_cache
+        let texture_view = texture_cache
             .get(
                 &render_device,
                 TextureDescriptor {
                     label: Some("color_attachment_texture"),
                     size: Extent3d {
-                        width: window.physical_width,
-                        height: window.physical_height,
+                        width: view.width.max(1),
+                        height: view.height.max(1),
                         depth_or_array_layers: 1,
                     },
                     mip_level_count: 1,
@@ -205,8 +199,8 @@ fn prepare_view_targets(
                 TextureDescriptor {
                     label: Some("sampled_color_attachment_texture"),
                     size: Extent3d {
-                        width: window.physical_width,
-                        height: window.physical_height,
+                        width: view.width.max(1),
+                        height: view.height.max(1),
                         depth_or_array_layers: 1,
                     },
                     mip_level_count: 1,
@@ -222,7 +216,7 @@ fn prepare_view_targets(
         };
 
         commands.entity(entity).insert(ViewTarget {
-            view,
+            view: texture_view,
             sampled_target,
             upscaled_texture: swap_chain_texture.clone(),
         });

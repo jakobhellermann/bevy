@@ -340,8 +340,8 @@ pub fn prepare_core_views_system(
                 label: Some("view_depth_texture"),
                 size: Extent3d {
                     depth_or_array_layers: 1,
-                    width: view.width as u32,
-                    height: view.height as u32,
+                    width: view.width.max(1) as u32,
+                    height: view.height.max(1) as u32,
                 },
                 mip_level_count: 1,
                 sample_count: msaa.samples,

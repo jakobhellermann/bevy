@@ -3,14 +3,14 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     ecs::prelude::*,
     input::Input,
-    math::{Quat, Vec3},
+    math::{Quat, UVec2, Vec3},
     pbr2::{
         AmbientLight, DirectionalLight, DirectionalLightBundle, PbrBundle, PointLight,
         PointLightBundle, StandardMaterial,
     },
     prelude::{App, Assets, BuildChildren, KeyCode, Transform},
     render2::{
-        camera::{OrthographicProjection, PerspectiveCameraBundle},
+        camera::{Camera, CameraPlugin, OrthographicProjection, PerspectiveCameraBundle},
         color::Color,
         mesh::{shape, Mesh},
     },
@@ -220,6 +220,11 @@ fn setup(
 
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
+        camera: Camera {
+            name: Some(CameraPlugin::CAMERA_3D.into()),
+            resolution: Some(UVec2::new(1280 / 4, 720 / 4)),
+            ..Default::default()
+        },
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
     });
