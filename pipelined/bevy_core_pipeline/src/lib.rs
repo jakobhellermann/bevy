@@ -3,6 +3,7 @@ mod clear_pass_driver;
 mod main_pass_2d;
 mod main_pass_3d;
 mod main_pass_driver;
+mod upscale_pass;
 
 pub use clear_pass::*;
 pub use clear_pass_driver::*;
@@ -29,15 +30,16 @@ use bevy_render2::{
 };
 
 use crate::clear_pass::ClearPassNode;
+use crate::upscale_pass::UpscalePassNode;
 
 /// Resource that configures the clear color
 #[derive(Clone, Debug)]
 pub struct ClearColor(pub Color);
 
 impl Default for ClearColor {
-    fn default() -> Self {
-        Self(Color::rgb(0.4, 0.4, 0.4))
-    }
+fn default() -> Self {
+    Self(Color::rgb(0.4, 0.4, 0.4))
+}
 }
 
 // Plugins that contribute to the RenderGraph should use the following label conventions:
@@ -49,6 +51,8 @@ pub mod node {
     pub const MAIN_PASS_DEPENDENCIES: &str = "main_pass_dependencies";
     pub const MAIN_PASS_DRIVER: &str = "main_pass_driver";
     pub const CLEAR_PASS_DRIVER: &str = "clear_pass_driver";
+    pub const VIEW: &str = "view";
+    pub const UPSCALE_PASS: &str = "upscale_pass";
 }
 
 pub mod draw_2d_graph {
@@ -83,7 +87,8 @@ pub struct CorePipelinePlugin;
 
 impl Plugin for CorePipelinePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ClearColor>();
+        app.init_resource::<ClearColor>()
+            .add_plugin(upscale_pass::UpscalePassPlugin);
 
         let render_app = app.sub_app(RenderApp);
         render_app
@@ -102,6 +107,7 @@ impl Plugin for CorePipelinePlugin {
         let clear_pass_node = ClearPassNode::new(&mut render_app.world);
         let pass_node_2d = MainPass2dNode::new(&mut render_app.world);
         let pass_node_3d = MainPass3dNode::new(&mut render_app.world);
+        let upscale_pass_node = UpscalePassNode::new(&mut render_app.world);
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
 
         let mut draw_2d_graph = RenderGraph::default();
@@ -145,9 +151,14 @@ impl Plugin for CorePipelinePlugin {
         graph
             .add_node_edge(node::MAIN_PASS_DEPENDENCIES, node::MAIN_PASS_DRIVER)
             .unwrap();
+
         graph.add_node(node::CLEAR_PASS_DRIVER, ClearPassDriverNode);
         graph
-            .add_node_edge(node::CLEAR_PASS_DRIVER, node::MAIN_PASS_DRIVER)
+            .add_node_edge(node::CLEAR_PASS_DRIVER, node::MAIN_PASS_DRIVER).unwrap();
+
+        graph.add_node(node::UPSCALE_PASS, upscale_pass_node);
+        graph
+            .add_node_edge(node::MAIN_PASS_DRIVER, node::UPSCALE_PASS)
             .unwrap();
     }
 }

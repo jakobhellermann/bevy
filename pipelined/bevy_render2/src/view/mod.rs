@@ -94,6 +94,8 @@ pub struct ViewUniformOffset {
 pub struct ViewTarget {
     pub view: TextureView,
     pub sampled_target: Option<TextureView>,
+    /// If set to `Some`, the scene will be rendered to the `view` and then upscaled to this texture at the end
+    pub upscaled_texture: TextureView,
 }
 
 impl ViewTarget {
@@ -177,6 +179,26 @@ fn prepare_view_targets(
         } else {
             continue;
         };
+
+        let view = texture_cache
+            .get(
+                &render_device,
+                TextureDescriptor {
+                    label: Some("color_attachment_texture"),
+                    size: Extent3d {
+                        width: window.physical_width,
+                        height: window.physical_height,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: TextureDimension::D2,
+                    format: TextureFormat::bevy_default(),
+                    usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+                },
+            )
+            .default_view;
+
         let sampled_target = if msaa.samples > 1 {
             let sampled_texture = texture_cache.get(
                 &render_device,
@@ -191,7 +213,7 @@ fn prepare_view_targets(
                     sample_count: msaa.samples,
                     dimension: TextureDimension::D2,
                     format: TextureFormat::bevy_default(),
-                    usage: TextureUsages::RENDER_ATTACHMENT,
+                    usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
                 },
             );
             Some(sampled_texture.default_view.clone())
@@ -200,8 +222,9 @@ fn prepare_view_targets(
         };
 
         commands.entity(entity).insert(ViewTarget {
-            view: swap_chain_texture.clone(),
+            view,
             sampled_target,
+            upscaled_texture: swap_chain_texture.clone(),
         });
     }
 }
