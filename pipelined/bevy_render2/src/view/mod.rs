@@ -9,7 +9,7 @@ use wgpu::{
 pub use window::*;
 
 use crate::{
-    camera::{ExtractedCamera, ExtractedCameraNames},
+    camera::ExtractedCamera,
     render_resource::{DynamicUniformVec, Texture, TextureView},
     renderer::{RenderDevice, RenderQueue},
     texture::{BevyDefault, TextureCache},
@@ -95,7 +95,7 @@ pub struct ViewTarget {
     pub view: TextureView,
     pub sampled_target: Option<TextureView>,
     /// If set to `Some`, the scene will be rendered to the `view` and then upscaled to this texture at the end
-    pub upscaled_texture: TextureView,
+    pub upscaled_texture: Option<TextureView>,
 }
 
 impl ViewTarget {
@@ -174,24 +174,28 @@ fn prepare_view_targets(
             continue;
         };
 
-        let texture_view = texture_cache
-            .get(
-                &render_device,
-                TextureDescriptor {
-                    label: Some("color_attachment_texture"),
-                    size: Extent3d {
-                        width: view.width.max(1),
-                        height: view.height.max(1),
-                        depth_or_array_layers: 1,
+        let texture_view = if camera.has_different_resolution {
+            texture_cache
+                .get(
+                    &render_device,
+                    TextureDescriptor {
+                        label: Some("color_attachment_texture"),
+                        size: Extent3d {
+                            width: view.width.max(1),
+                            height: view.height.max(1),
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: TextureDimension::D2,
+                        format: TextureFormat::bevy_default(),
+                        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
                     },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: TextureDimension::D2,
-                    format: TextureFormat::bevy_default(),
-                    usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-                },
-            )
-            .default_view;
+                )
+                .default_view
+        } else {
+            swap_chain_texture.clone()
+        };
 
         let sampled_target = if msaa.samples > 1 {
             let sampled_texture = texture_cache.get(
@@ -218,7 +222,9 @@ fn prepare_view_targets(
         commands.entity(entity).insert(ViewTarget {
             view: texture_view,
             sampled_target,
-            upscaled_texture: swap_chain_texture.clone(),
+            upscaled_texture: camera
+                .has_different_resolution
+                .then(|| swap_chain_texture.clone()),
         });
     }
 }

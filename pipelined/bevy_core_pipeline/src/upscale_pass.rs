@@ -63,10 +63,15 @@ impl Node for UpscalePassNode {
         let pipeline_cache = world.get_resource::<RenderPipelineCache>().unwrap();
 
         for (view, bind_group) in self.query.iter_manual(world) {
+            let view = match &view.upscaled_texture {
+                Some(view) => view,
+                None => continue,
+            };
+
             let pass_descriptor = RenderPassDescriptor {
                 label: Some("upscale_pass"),
                 color_attachments: &[RenderPassColorAttachment {
-                    view: &view.upscaled_texture,
+                    view,
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,
@@ -100,6 +105,10 @@ fn queue_view_bind_groups(
     render_device: Res<RenderDevice>,
 ) {
     for (entity, target) in query.iter() {
+        if target.upscaled_texture.is_none() {
+            continue;
+        }
+
         let sampler = render_device.create_sampler(&SamplerDescriptor {
             ..Default::default()
         });

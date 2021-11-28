@@ -68,6 +68,7 @@ pub struct ExtractedCameraNames {
 pub struct ExtractedCamera {
     pub window_id: WindowId,
     pub name: Option<String>,
+    pub has_different_resolution: bool,
 }
 
 fn extract_cameras(
@@ -92,6 +93,7 @@ fn extract_cameras(
                     ExtractedCamera {
                         window_id: camera.window,
                         name: camera.name.clone(),
+                        has_different_resolution: camera.resolution.is_some(),
                     },
                     ExtractedView {
                         projection: camera.projection_matrix,
