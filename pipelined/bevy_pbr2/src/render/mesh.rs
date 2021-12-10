@@ -202,7 +202,10 @@ impl FromWorld for MeshPipeline {
                     ty: BindingType::Texture {
                         multisampled: false,
                         sample_type: TextureSampleType::Depth,
+                        #[cfg(not(feature = "webgl2"))]
                         view_dimension: TextureViewDimension::CubeArray,
+                        #[cfg(feature = "webgl2")]
+                        view_dimension: TextureViewDimension::Cube,
                     },
                     count: None,
                 },
@@ -223,7 +226,10 @@ impl FromWorld for MeshPipeline {
                     ty: BindingType::Texture {
                         multisampled: false,
                         sample_type: TextureSampleType::Depth,
+                        #[cfg(not(feature = "webgl2"))]
                         view_dimension: TextureViewDimension::D2Array,
+                        #[cfg(feature = "webgl2")]
+                        view_dimension: TextureViewDimension::D2,
                     },
                     count: None,
                 },
@@ -468,6 +474,9 @@ impl SpecializedPipeline for MeshPipeline {
             // depth buffer
             depth_write_enabled = true;
         }
+
+        #[cfg(feature = "webgl2")]
+        shader_defs.push(String::from("NO_ARRAY_TEXTURES_SUPPORT"));
 
         RenderPipelineDescriptor {
             vertex: VertexState {
