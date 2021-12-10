@@ -13,7 +13,6 @@ license = "MIT"
 keywords = ["bevy"]
 
 [features]
-default = []
 webgl2 = []
 
 [dependencies]
