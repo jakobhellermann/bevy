@@ -592,13 +592,18 @@ pub fn prepare_lights(
             .entity_to_index
             .reserve(point_lights.len());
     }
+    let mut n_shadow_casting_point_lights = 0;
     let mut gpu_point_lights = [GpuPointLight::default(); MAX_POINT_LIGHTS];
     for (index, &(entity, light)) in point_lights.iter().enumerate() {
         let mut flags = PointLightFlags::NONE;
 
-        if light.shadows_enabled && index < MAX_POINT_LIGHT_SHADOW_MAPS {
-            flags |= PointLightFlags::SHADOWS_ENABLED;
+        if light.shadows_enabled {
+            n_shadow_casting_point_lights += 1;
+            if index < MAX_POINT_LIGHT_SHADOW_MAPS {
+                flags |= PointLightFlags::SHADOWS_ENABLED;
+            }
         }
+
         gpu_point_lights[index] = GpuPointLight {
             projection_lr: Vec4::new(
                 cube_face_projection.z_axis.z,
@@ -625,6 +630,13 @@ pub fn prepare_lights(
     global_light_meta
         .gpu_point_lights
         .write_buffer(&render_device, &render_queue);
+
+    if n_shadow_casting_point_lights > MAX_POINT_LIGHT_SHADOW_MAPS {
+        warn!(
+            "number of shadow casting point lights is {}, which is larger than the maximum of {}",
+            n_shadow_casting_point_lights, MAX_POINT_LIGHT_SHADOW_MAPS
+        );
+    }
 
     // set up light data for each view
     for (entity, extracted_view, clusters) in views.iter() {
