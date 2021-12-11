@@ -574,14 +574,29 @@ pub fn prepare_lights(
 
     global_light_meta.gpu_point_lights.clear();
     global_light_meta.entity_to_index.clear();
-    let n_point_lights = point_lights.iter().count();
-    if global_light_meta.entity_to_index.capacity() < n_point_lights {
-        global_light_meta.entity_to_index.reserve(n_point_lights);
+
+    let mut point_lights: Vec<_> = point_lights.iter().collect::<Vec<_>>();
+
+    // Sort point lights with shadows enabled first, then by a stable key so that the index can be used
+    // to render at most `MAX_POINT_LIGHT_SHADOW_MAPS` point light shadows.
+    point_lights.sort_by(|(entity_1, light_1), (entity_2, light_2)| {
+        light_1
+            .shadows_enabled
+            .cmp(&light_2.shadows_enabled)
+            .reverse()
+            .then_with(|| entity_1.cmp(&entity_2))
+    });
+
+    if global_light_meta.entity_to_index.capacity() < point_lights.len() {
+        global_light_meta
+            .entity_to_index
+            .reserve(point_lights.len());
     }
     let mut gpu_point_lights = [GpuPointLight::default(); MAX_POINT_LIGHTS];
-    for (index, (entity, light)) in point_lights.iter().enumerate() {
+    for (index, &(entity, light)) in point_lights.iter().enumerate() {
         let mut flags = PointLightFlags::NONE;
-        if light.shadows_enabled {
+
+        if light.shadows_enabled && index < MAX_POINT_LIGHT_SHADOW_MAPS {
             flags |= PointLightFlags::SHADOWS_ENABLED;
         }
         gpu_point_lights[index] = GpuPointLight {
@@ -664,10 +679,8 @@ pub fn prepare_lights(
         };
 
         // TODO: this should select lights based on relevance to the view instead of the first ones that show up in a query
-        let mut point_light_count = 0;
-        for (light_entity, light) in point_lights.iter() {
-            if point_light_count < MAX_POINT_LIGHT_SHADOW_MAPS && light.shadows_enabled {
-                point_light_count += 1;
+        for (index, &(light_entity, light)) in point_lights.iter().enumerate() {
+            if index < MAX_POINT_LIGHT_SHADOW_MAPS && light.shadows_enabled {
                 let light_index = *global_light_meta
                     .entity_to_index
                     .get(&light_entity)
