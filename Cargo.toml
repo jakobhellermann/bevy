@@ -377,6 +377,10 @@ path = "examples/input/touch_input_events.rs"
 
 # Reflection
 [[example]]
+name = "reflect_poc"
+path = "examples/reflection/reflect_poc.rs"
+
+[[example]]
 name = "reflection"
 path = "examples/reflection/reflection.rs"
 

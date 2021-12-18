@@ -104,7 +104,11 @@ pub fn derive_reflect(input: TokenStream) -> TokenStream {
         .map(|(f, _attr, i)| (*f, *i))
         .collect::<Vec<(&Field, usize)>>();
 
-    let bevy_reflect_path = BevyManifest::default().get_path("bevy_reflect");
+    let bevy_manifest = BevyManifest::default();
+    let bevy_reflect_path = bevy_manifest.get_path("bevy_reflect");
+    #[cfg(feature = "bevy_ecs")]
+    let bevy_ecs_path = bevy_manifest.get_path("bevy_ecs");
+
     let type_name = &ast.ident;
 
     let mut reflect_attrs = ReflectAttrs::default();
@@ -131,6 +135,8 @@ pub fn derive_reflect(input: TokenStream) -> TokenStream {
         &bevy_reflect_path,
         registration_data,
         &ast.generics,
+        #[cfg(feature = "bevy_ecs")]
+        Some(&bevy_ecs_path),
     );
 
     match derive_type {
@@ -555,7 +561,9 @@ impl Parse for ReflectDef {
 pub fn impl_reflect_value(input: TokenStream) -> TokenStream {
     let reflect_value_def = parse_macro_input!(input as ReflectDef);
 
-    let bevy_reflect_path = BevyManifest::default().get_path("bevy_reflect");
+    let bevy_manifest = BevyManifest::default();
+    let bevy_reflect_path = bevy_manifest.get_path("bevy_reflect");
+
     let ty = &reflect_value_def.type_name;
     let reflect_attrs = reflect_value_def.attrs.unwrap_or_default();
     let registration_data = &reflect_attrs.data;
@@ -564,6 +572,7 @@ pub fn impl_reflect_value(input: TokenStream) -> TokenStream {
         &bevy_reflect_path,
         registration_data,
         &reflect_value_def.generics,
+        None,
     );
     impl_value(
         ty,
@@ -711,13 +720,26 @@ fn impl_get_type_registration(
     bevy_reflect_path: &Path,
     registration_data: &[Ident],
     generics: &Generics,
+    #[cfg(feature = "bevy_ecs")] bevy_ecs_path: Option<&Path>,
 ) -> proc_macro2::TokenStream {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    #[cfg(feature = "bevy_ecs")]
+    let reflect_component = bevy_ecs_path.map(|bevy_ecs_path| quote! {
+        use #bevy_ecs_path::__macro_reflect_component::{NotReflectComponent, HasReflectComponent};
+
+        let reflect_component = (HasReflectComponent::<#type_name #ty_generics>::REFLECT_COMPONENT)();
+        if let Some(reflect_component) = reflect_component {
+            registration.insert(reflect_component);
+        }
+    });
+
     quote! {
         #[allow(unused_mut)]
         impl #impl_generics #bevy_reflect_path::GetTypeRegistration for #type_name #ty_generics #where_clause {
             fn get_type_registration() -> #bevy_reflect_path::TypeRegistration {
                 let mut registration = #bevy_reflect_path::TypeRegistration::of::<#type_name #ty_generics>();
+                #reflect_component
                 #(registration.insert::<#registration_data>(#bevy_reflect_path::FromType::<#type_name #ty_generics>::from_type());)*
                 registration
             }

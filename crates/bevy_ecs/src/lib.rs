@@ -1610,3 +1610,21 @@ mod tests {
         );
     }
 }
+
+#[doc(hidden)]
+pub mod __macro_reflect_component {
+    use crate::{component::Component, prelude::FromWorld, reflect::ReflectComponent};
+    use bevy_reflect::{FromType, Reflect};
+
+    pub trait NotReflectComponent {
+        const REFLECT_COMPONENT: fn() -> Option<ReflectComponent> = || None;
+    }
+    impl<T> NotReflectComponent for T {}
+
+    pub struct HasReflectComponent<T>(std::marker::PhantomData<T>);
+
+    impl<T: Component + FromWorld + Reflect> HasReflectComponent<T> {
+        pub const REFLECT_COMPONENT: fn() -> Option<ReflectComponent> =
+            || Some(FromType::<T>::from_type());
+    }
+}

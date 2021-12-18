@@ -10,7 +10,8 @@ keywords = ["bevy"]
 readme = "README.md"
 
 [features]
-bevy = ["glam", "smallvec"]
+bevy_ecs = ["bevy_reflect_derive/bevy_ecs"]
+bevy = ["glam", "smallvec", "bevy_ecs"]
 
 [dependencies]
 # bevy
