@@ -3,10 +3,11 @@ use crate::{
     RefChange,
 };
 use bevy_app::{App, EventWriter, Events};
-use bevy_ecs::{system::ResMut, world::FromWorld};
+use bevy_ecs::{prelude::World, system::ResMut, world::FromWorld};
+use bevy_reflect::{FromType, TypeRegistration, TypeRegistryArc};
 use bevy_utils::HashMap;
 use crossbeam_channel::Sender;
-use std::fmt::Debug;
+use std::{any::Any, fmt::Debug};
 
 /// Events that happen on assets of type `T`
 ///
@@ -42,6 +43,99 @@ impl<T: Asset> Debug for AssetEvent<T> {
                 .field("handle", &handle.id)
                 .finish(),
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct AssetTypeData {
+    get: fn(&World) -> Option<&dyn AssetsDynamic>,
+    get_mut: fn(&mut World) -> Option<&mut dyn AssetsDynamic>,
+}
+
+impl<T: Asset> FromType<T> for AssetTypeData {
+    fn from_type() -> Self {
+        AssetTypeData {
+            get: |world| {
+                let assets = world.get_resource::<Assets<T>>()?;
+                Some(assets)
+            },
+            get_mut: |world| {
+                let assets = world.get_resource_mut::<Assets<T>>()?.into_inner();
+                Some(assets)
+            },
+        }
+    }
+}
+
+impl AssetTypeData {
+    pub fn get<'w>(&self, world: &'w World) -> Option<&'w dyn AssetsDynamic> {
+        (self.get)(world)
+    }
+    pub fn get_mut<'w>(&self, world: &'w mut World) -> Option<&'w mut dyn AssetsDynamic> {
+        (self.get_mut)(world)
+    }
+}
+
+#[derive(Clone)]
+pub struct HandleTypeData {
+    asset_type_id: std::any::TypeId,
+}
+impl<T: Asset> FromType<Handle<T>> for HandleTypeData {
+    fn from_type() -> Self {
+        HandleTypeData {
+            asset_type_id: std::any::TypeId::of::<T>(),
+        }
+    }
+}
+impl HandleTypeData {
+    pub fn asset_type_id(&self) -> std::any::TypeId {
+        self.asset_type_id
+    }
+}
+
+pub trait AssetsDynamic {
+    fn get(&self, id: HandleId) -> Option<&dyn Any>;
+    fn get_mut(&mut self, id: HandleId) -> Option<&mut dyn Any>;
+    fn contains(&self, id: HandleId) -> bool;
+    fn remove(&mut self, id: HandleId) -> Option<Box<dyn Any>>;
+    fn iter(&self) -> Box<dyn Iterator<Item = (HandleId, &dyn Any)> + '_>;
+    fn iter_mut(&mut self) -> Box<dyn Iterator<Item = (HandleId, &mut dyn Any)> + '_>;
+    fn len(&self) -> usize;
+    fn clear(&mut self);
+}
+
+impl<T: Asset> AssetsDynamic for Assets<T> {
+    fn get(&self, id: HandleId) -> Option<&dyn Any> {
+        let value = self.get(id)?;
+        Some(value)
+    }
+    fn get_mut(&mut self, id: HandleId) -> Option<&mut dyn Any> {
+        let value = self.get_mut(id)?;
+        Some(value)
+    }
+    fn contains(&self, id: HandleId) -> bool {
+        self.contains(id)
+    }
+
+    fn remove(&mut self, id: HandleId) -> Option<Box<dyn Any>> {
+        self.remove(id).map(|value| Box::new(value) as Box<dyn Any>)
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = (HandleId, &dyn Any)> + '_> {
+        Box::new(self.iter().map(|(id, value)| (id, value as &dyn Any)))
+    }
+    fn iter_mut(&mut self) -> Box<dyn Iterator<Item = (HandleId, &mut dyn Any)> + '_> {
+        Box::new(
+            self.iter_mut()
+                .map(|(id, value)| (id, value as &mut dyn Any)),
+        )
+    }
+    fn len(&self) -> usize {
+        self.len()
+    }
+
+    fn clear(&mut self) {
+        self.clear();
     }
 }
 
@@ -283,7 +377,24 @@ impl AddAsset for App {
             .add_system_to_stage(AssetStage::AssetEvents, Assets::<T>::asset_event_system)
             .add_system_to_stage(AssetStage::LoadAssets, update_asset_storage_system::<T>)
             .register_type::<Handle<T>>()
-            .add_event::<AssetEvent<T>>()
+            .add_event::<AssetEvent<T>>();
+
+        {
+            let type_registry = self.world.get_resource_mut::<TypeRegistryArc>().unwrap();
+            let mut type_registry = type_registry.write();
+
+            let handle_registration = type_registry
+                .get_mut(std::any::TypeId::of::<Handle<T>>())
+                .unwrap();
+            handle_registration.insert(<HandleTypeData as FromType<Handle<T>>>::from_type());
+
+            let type_registration = TypeRegistration::of::<T>();
+            type_registry.add_registration(type_registration);
+            let asset_registration = type_registry.get_mut(std::any::TypeId::of::<T>()).unwrap();
+            asset_registration.insert(<AssetTypeData as FromType<T>>::from_type());
+        }
+
+        self
     }
 
     fn init_asset_loader<T>(&mut self) -> &mut Self
