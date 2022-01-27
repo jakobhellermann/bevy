@@ -70,6 +70,13 @@ impl<'w> EntityRef<'w> {
         }
     }
 
+    pub fn get_dynamic(&self, component_id: ComponentId) -> Option<*const ()> {
+        unsafe {
+            get_component(self.world, component_id, self.entity, self.location)
+                .map(|ptr| ptr as *const ())
+        }
+    }
+
     /// # Safety
     /// This allows aliased mutability. You must make sure this call does not result in multiple
     /// mutable references to the same component
@@ -153,6 +160,13 @@ impl<'w> EntityMut<'w> {
         }
     }
 
+    pub fn get_dynamic(&self, component_id: ComponentId) -> Option<*const ()> {
+        unsafe {
+            get_component(self.world, component_id, self.entity, self.location)
+                .map(|ptr| ptr as *const ())
+        }
+    }
+
     #[inline]
     pub fn get_mut<T: Component>(&mut self) -> Option<Mut<'w, T>> {
         // SAFE: world access is unique, entity location is valid, and returned component is of type
@@ -172,6 +186,18 @@ impl<'w> EntityMut<'w> {
                     change_tick: self.world.change_tick(),
                 },
             })
+        }
+    }
+
+    pub fn get_mut_dynamic(&mut self, component_id: ComponentId) -> *mut () {
+        // SAFE: world access is unique and entity location is valid
+        unsafe {
+            get_component_and_ticks(self.world, component_id, self.entity, self.location)
+                .map(|(value, ticks)| {
+                    (&mut *ticks).set_changed(self.world.change_tick());
+                    value.cast()
+                })
+                .unwrap_or_else(std::ptr::null_mut)
         }
     }
 

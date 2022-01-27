@@ -329,6 +329,11 @@ impl Components {
         self.indices.get(&type_id).map(|index| ComponentId(*index))
     }
 
+    pub fn get_id_by_name(&self, name: &str) -> Option<ComponentId> {
+        let info = self.components.iter().find(|info| info.name() == name)?;
+        Some(info.id)
+    }
+
     #[inline]
     pub fn get_resource_id(&self, type_id: TypeId) -> Option<ComponentId> {
         self.resource_indices
