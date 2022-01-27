@@ -11,7 +11,9 @@ use crate::{
     archetype::{ArchetypeComponentId, ArchetypeComponentInfo, ArchetypeId, Archetypes},
     bundle::{Bundle, BundleInserter, BundleSpawner, Bundles},
     change_detection::Ticks,
-    component::{Component, ComponentId, ComponentTicks, Components, StorageType},
+    component::{
+        Component, ComponentDescriptor, ComponentId, ComponentTicks, Components, StorageType,
+    },
     entity::{AllocAtWithoutReplacement, Entities, Entity},
     query::{FilterFetch, QueryState, WorldQuery},
     storage::{Column, SparseSet, Storages},
@@ -179,6 +181,11 @@ impl World {
 
     pub fn init_component<T: Component>(&mut self) -> ComponentId {
         self.components.init_component::<T>(&mut self.storages)
+    }
+
+    pub fn init_component_dynamic(&mut self, descriptor: ComponentDescriptor) -> ComponentId {
+        self.components
+            .init_component_dynamic(&mut self.storages, descriptor)
     }
 
     /// Retrieves an [`EntityRef`] that exposes read-only operations for the given `entity`.
