@@ -1,0 +1,9 @@
+language = "C"
+documentation = false
+style = "type"
+
+[defines]
+"feature = ffi" = "DEFINE_FFI"
+
+[parse]
+expand = ["bevy_ecs"]

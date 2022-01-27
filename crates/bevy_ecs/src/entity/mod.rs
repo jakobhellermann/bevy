@@ -45,6 +45,7 @@ use std::{
 /// Components of a specific entity can be accessed using
 /// [`Query::get`](crate::system::Query::get) and related methods.
 #[derive(Clone, Copy, Hash, Eq, Ord, PartialEq, PartialOrd)]
+#[repr(C)]
 pub struct Entity {
     pub(crate) generation: u32,
     pub(crate) id: u32,

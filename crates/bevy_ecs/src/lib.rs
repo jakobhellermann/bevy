@@ -41,6 +41,7 @@ pub mod prelude {
 }
 
 pub use bevy_ecs_macros::all_tuples;
+pub mod ffi;
 
 #[cfg(test)]
 mod tests {

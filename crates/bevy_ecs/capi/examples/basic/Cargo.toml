@@ -1,0 +1,10 @@
+[package]
+name = "basic"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+bevy_ecs = { path = "../../.." }
+libloading = "0.7.0"
+
+[workspace]

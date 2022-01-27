@@ -9,6 +9,9 @@ license = "MIT OR Apache-2.0"
 keywords = ["ecs", "game", "bevy"]
 categories = ["game-engines", "data-structures"]
 
+[lib]
+crate-type = ["rlib", "cdylib"]
+
 [features]
 trace = []
 default = ["bevy_reflect"]
@@ -41,3 +44,5 @@ path = "examples/resources.rs"
 [[example]]
 name = "change_detection"
 path = "examples/change_detection.rs"
+
+[workspace]

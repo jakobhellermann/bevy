@@ -75,6 +75,7 @@ where
 /// struct A;
 /// ```
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(C)]
 pub enum StorageType {
     /// Provides fast and cache-friendly iteration, but slower addition and removal of components.
     /// This is the default storage type.
@@ -137,9 +138,12 @@ impl ComponentInfo {
 }
 
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
+#[repr(C)]
 pub struct ComponentId(usize);
 
 impl ComponentId {
+    pub const INVALID: ComponentId = ComponentId(usize::MAX);
+
     #[inline]
     pub const fn new(index: usize) -> ComponentId {
         ComponentId(index)
