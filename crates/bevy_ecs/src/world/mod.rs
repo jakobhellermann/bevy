@@ -1109,6 +1109,12 @@ impl World {
         Some(&*column.get_data_ptr().as_ptr().cast::<R>())
     }
 
+    #[inline]
+    pub unsafe fn get_resource_dynamic(&self, component_id: ComponentId) -> Option<*const ()> {
+        let column = self.get_populated_resource_column(component_id)?;
+        Some(&*column.get_data_ptr().as_ptr().cast())
+    }
+
     /// # Safety
     /// `component_id` must be assigned to a component of type `R`
     /// Caller must ensure this doesn't violate Rust mutability rules for the given resource.
