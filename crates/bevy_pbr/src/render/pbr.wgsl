@@ -276,7 +276,7 @@ fn unpack_offset_and_count(cluster_index: u32) -> vec2<u32> {
         offset_and_count & ((1u << CLUSTER_COUNT_SIZE) - 1u)
     );
 #else
-    return cluster_offsets_and_counts.data[cluster_index];
+    return cluster_offsets_and_counts.data[cluster_index].xy;
 #endif
 }
 
@@ -288,7 +288,7 @@ fn get_light_id(index: u32) -> u32 {
     // And index % 4 gives the sub-index of the u8 within the u32 so we shift by 8 * sub-index
     return (indices >> (8u * (index & ((1u << 2u) - 1u)))) & ((1u << 8u) - 1u);
 #else
-    return cluster_light_index_lists.data[index];
+    return cluster_light_index_lists.data[index].x;
 #endif
 }
 
