@@ -5,15 +5,18 @@ use super::dds::*;
 #[cfg(feature = "ktx2")]
 use super::ktx2::*;
 
-use super::image_texture_conversion::image_to_texture;
+use super::{image_texture_conversion::image_to_texture, mipmap_queue::MipmapQueue};
 use crate::{
     render_asset::{PrepareAssetError, RenderAsset},
     render_resource::{Sampler, Texture, TextureView},
     renderer::{RenderDevice, RenderQueue},
-    texture::BevyDefault,
+    texture::{mipmap_queue::MipmapGenerationMode, BevyDefault},
 };
 use bevy_asset::HandleUntyped;
-use bevy_ecs::system::{lifetimeless::SRes, SystemParamItem};
+use bevy_ecs::system::{
+    lifetimeless::{SRes, SResMut},
+    SystemParamItem,
+};
 use bevy_math::{Size, Vec2};
 use bevy_reflect::TypeUuid;
 use thiserror::Error;
@@ -546,7 +549,7 @@ pub struct GpuImage {
 impl RenderAsset for Image {
     type ExtractedAsset = Image;
     type PreparedAsset = GpuImage;
-    type Param = (SRes<RenderDevice>, SRes<RenderQueue>);
+    type Param = (SRes<RenderDevice>, SRes<RenderQueue>, SResMut<MipmapQueue>);
 
     /// Clones the Image.
     fn extract_asset(&self) -> Self::ExtractedAsset {
@@ -555,8 +558,8 @@ impl RenderAsset for Image {
 
     /// Converts the extracted image into a [`GpuImage`].
     fn prepare_asset(
-        image: Self::ExtractedAsset,
-        (render_device, render_queue): &mut SystemParamItem<Self::Param>,
+        mut image: Self::ExtractedAsset,
+        (render_device, render_queue, ref mut mipmap_queue): &mut SystemParamItem<Self::Param>,
     ) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
         let texture = if image.texture_descriptor.mip_level_count > 1 || image.is_compressed() {
             render_device.create_texture_with_data(
@@ -565,6 +568,16 @@ impl RenderAsset for Image {
                 &image.data,
             )
         } else {
+            let generate_mips = true;
+            let max_mips = image.texture_descriptor.size.max_mips();
+            let mipmap_mode = (generate_mips && max_mips > 1)
+                .then(|| MipmapGenerationMode::preferred(&render_device));
+
+            if let Some(mipmap_strategy) = mipmap_mode {
+                image.texture_descriptor.mip_level_count = max_mips;
+                image.texture_descriptor.usage |= mipmap_strategy.required_texture_usages();
+            }
+
             let texture = render_device.create_texture(&image.texture_descriptor);
             let format_size = image.texture_descriptor.format.pixel_size();
             render_queue.write_texture(
@@ -591,6 +604,16 @@ impl RenderAsset for Image {
                 },
                 image.texture_descriptor.size,
             );
+
+            if let Some(mipmap_mode) = mipmap_mode {
+                mipmap_queue.enqueue(
+                    mipmap_mode,
+                    texture.clone(),
+                    max_mips,
+                    image.texture_descriptor.format,
+                );
+            }
+
             texture
         };
 

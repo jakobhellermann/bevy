@@ -9,6 +9,7 @@ mod image;
 mod image_texture_loader;
 #[cfg(feature = "ktx2")]
 mod ktx2;
+pub mod mipmap_queue;
 mod texture_cache;
 
 pub(crate) mod image_texture_conversion;
@@ -30,6 +31,7 @@ use crate::{
 };
 use bevy_app::{App, Plugin};
 use bevy_asset::{AddAsset, Assets};
+use mipmap_queue::MipmapQueue;
 
 // TODO: replace Texture names with Image names?
 /// Adds the [`Image`] as an asset and makes sure that they are extracted and prepared for the GPU.
@@ -65,6 +67,7 @@ impl Plugin for ImagePlugin {
 
         if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
+                .init_resource::<MipmapQueue>()
                 .init_resource::<TextureCache>()
                 .add_system_to_stage(RenderStage::Cleanup, update_texture_cache_system);
         }

@@ -70,6 +70,7 @@ impl RenderTargetClearColors {
 // 3. "sub graph" modules should be nested beneath their parent graph module
 
 pub mod node {
+    pub const MIPMAP_GENERATION: &str = "mipmap_generation";
     pub const MAIN_PASS_DEPENDENCIES: &str = "main_pass_dependencies";
     pub const MAIN_PASS_DRIVER: &str = "main_pass_driver";
     pub const CLEAR_PASS_DRIVER: &str = "clear_pass_driver";
@@ -145,6 +146,9 @@ impl Plugin for CorePipelinePlugin {
         let clear_pass_node = ClearPassNode::new(&mut render_app.world);
         let pass_node_2d = MainPass2dNode::new(&mut render_app.world);
         let pass_node_3d = MainPass3dNode::new(&mut render_app.world);
+        let mipmap_node =
+            bevy_render::texture::mipmap_queue::MipmapGenerationNode::new(&mut render_app.world);
+
         let mut graph = render_app.world.resource_mut::<RenderGraph>();
 
         let mut draw_2d_graph = RenderGraph::default();
@@ -191,6 +195,11 @@ impl Plugin for CorePipelinePlugin {
         graph.add_node(node::CLEAR_PASS_DRIVER, ClearPassDriverNode);
         graph
             .add_node_edge(node::CLEAR_PASS_DRIVER, node::MAIN_PASS_DRIVER)
+            .unwrap();
+
+        let mipmap_node = graph.add_node(node::MIPMAP_GENERATION, mipmap_node);
+        graph
+            .add_node_edge(mipmap_node, node::MAIN_PASS_DEPENDENCIES)
             .unwrap();
     }
 }
