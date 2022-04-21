@@ -162,6 +162,7 @@ impl FromWorld for Mesh2dPipeline {
                 TextureDimension::D2,
                 &[255u8; 4],
                 TextureFormat::bevy_default(),
+                false,
             );
             let texture = render_device.create_texture(&image.texture_descriptor);
             let sampler = render_device.create_sampler(&image.sampler_descriptor);

@@ -572,6 +572,7 @@ async fn load_texture<'a>(
                 ImageType::MimeType(mime_type),
                 supported_compressed_formats,
                 is_srgb,
+                true,
             )?
         }
         gltf::image::Source::Uri { uri, mime_type } => {
@@ -597,6 +598,7 @@ async fn load_texture<'a>(
                 mime_type.map(ImageType::MimeType).unwrap_or(image_type),
                 supported_compressed_formats,
                 is_srgb,
+                true,
             )?
         }
     };

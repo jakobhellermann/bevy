@@ -4,7 +4,11 @@ use wgpu::{Extent3d, TextureDimension, TextureFormat};
 
 // TODO: fix name?
 /// Converts a [`DynamicImage`] to an [`Image`].
-pub(crate) fn image_to_texture(dyn_img: DynamicImage, is_srgb: bool) -> Image {
+pub(crate) fn image_to_texture(
+    dyn_img: DynamicImage,
+    is_srgb: bool,
+    autogenerate_mipmaps: bool,
+) -> Image {
     use bevy_core::cast_slice;
     let width;
     let height;
@@ -146,6 +150,7 @@ pub(crate) fn image_to_texture(dyn_img: DynamicImage, is_srgb: bool) -> Image {
         TextureDimension::D2,
         data,
         format,
+        autogenerate_mipmaps,
     )
 }
 

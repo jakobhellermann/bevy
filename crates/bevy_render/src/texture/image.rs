@@ -113,6 +113,7 @@ pub struct Image {
     // TODO: this nesting makes accessing Image metadata verbose. Either flatten out descriptor or add accessors
     pub texture_descriptor: wgpu::TextureDescriptor<'static>,
     pub sampler_descriptor: wgpu::SamplerDescriptor<'static>,
+    pub autogenerate_mipmaps: bool,
 }
 
 impl Default for Image {
@@ -135,6 +136,7 @@ impl Default for Image {
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             },
             sampler_descriptor: wgpu::SamplerDescriptor::default(),
+            autogenerate_mipmaps: false,
         }
     }
 }
@@ -150,6 +152,7 @@ impl Image {
         dimension: TextureDimension,
         data: Vec<u8>,
         format: TextureFormat,
+        autogenerate_mipmaps: bool,
     ) -> Self {
         debug_assert_eq!(
             size.volume() * format.pixel_size(),
@@ -163,6 +166,7 @@ impl Image {
         image.texture_descriptor.dimension = dimension;
         image.texture_descriptor.size = size;
         image.texture_descriptor.format = format;
+        image.autogenerate_mipmaps = autogenerate_mipmaps;
         image
     }
 
@@ -177,10 +181,12 @@ impl Image {
         dimension: TextureDimension,
         pixel: &[u8],
         format: TextureFormat,
+        autogenerate_mipmaps: bool,
     ) -> Self {
         let mut value = Image::default();
         value.texture_descriptor.format = format;
         value.texture_descriptor.dimension = dimension;
+        value.autogenerate_mipmaps = autogenerate_mipmaps;
         value.resize(size);
 
         debug_assert_eq!(
@@ -283,7 +289,11 @@ impl Image {
                 _ => None,
             })
             .map(|(dyn_img, is_srgb)| {
-                super::image_texture_conversion::image_to_texture(dyn_img, is_srgb)
+                super::image_texture_conversion::image_to_texture(
+                    dyn_img,
+                    is_srgb,
+                    self.autogenerate_mipmaps,
+                )
             })
     }
 
@@ -294,6 +304,7 @@ impl Image {
         image_type: ImageType,
         #[allow(unused_variables)] supported_compressed_formats: CompressedImageFormats,
         is_srgb: bool,
+        autogenerate_mipmaps: bool,
     ) -> Result<Image, TextureError> {
         let format = image_type.to_image_format()?;
 
@@ -319,7 +330,8 @@ impl Image {
                     TextureError::UnsupportedTextureFormat(format!("{:?}", format))
                 })?;
                 let dyn_img = image::load_from_memory_with_format(buffer, image_crate_format)?;
-                Ok(image_to_texture(dyn_img, is_srgb))
+                let image = image_to_texture(dyn_img, is_srgb, autogenerate_mipmaps);
+                Ok(image)
             }
         }
     }
@@ -741,6 +753,7 @@ mod test {
             TextureDimension::D2,
             &[0, 0, 0, 255],
             TextureFormat::Rgba8Unorm,
+            false,
         );
         assert_eq!(
             Vec2::new(size.width as f32, size.height as f32),

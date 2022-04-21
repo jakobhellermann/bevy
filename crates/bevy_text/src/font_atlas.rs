@@ -60,6 +60,7 @@ impl FontAtlas {
             TextureDimension::D2,
             &[0, 0, 0, 0],
             TextureFormat::Rgba8UnormSrgb,
+            false,
         ));
         let texture_atlas = TextureAtlas::new_empty(atlas_texture, size);
         Self {

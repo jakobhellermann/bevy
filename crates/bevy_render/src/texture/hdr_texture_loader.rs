@@ -45,6 +45,7 @@ impl AssetLoader for HdrTextureLoader {
                 TextureDimension::D2,
                 rgba_data,
                 format,
+                false,
             );
 
             load_context.set_default_asset(LoadedAsset::new(texture));

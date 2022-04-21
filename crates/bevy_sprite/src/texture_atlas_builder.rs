@@ -189,6 +189,7 @@ impl TextureAtlasBuilder {
                             self.format.pixel_size() * (current_width * current_height) as usize
                         ],
                         self.format,
+                        false,
                     );
                     Some(rect_placements)
                 }
