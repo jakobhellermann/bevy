@@ -221,12 +221,15 @@ impl<Param: SystemParam> SystemState<Param> {
         world: &'w World,
     ) -> <Param::Fetch as SystemParamFetch<'w, 's>>::Item {
         let change_tick = world.increment_change_tick();
-        let param = <Param::Fetch as SystemParamFetch>::get_param(
-            &mut self.param_state,
-            &self.meta,
-            world,
-            change_tick,
-        );
+        // SAFETY: caller promises to only access data that is safe to access in the context of the system scheduler
+        let param = unsafe {
+            <Param::Fetch as SystemParamFetch>::get_param(
+                &mut self.param_state,
+                &self.meta,
+                world,
+                change_tick,
+            )
+        };
         self.meta.last_change_tick = change_tick;
         param
     }
@@ -394,12 +397,14 @@ where
         // We update the archetype component access correctly based on `Param`'s requirements
         // in `update_archetype_component_access`.
         // Our caller upholds the requirements.
-        let params = <Param as SystemParam>::Fetch::get_param(
-            self.param_state.as_mut().expect(Self::PARAM_MESSAGE),
-            &self.system_meta,
-            world,
-            change_tick,
-        );
+        let params = unsafe {
+            <Param as SystemParam>::Fetch::get_param(
+                self.param_state.as_mut().expect(Self::PARAM_MESSAGE),
+                &self.system_meta,
+                world,
+                change_tick,
+            )
+        };
         let out = self.func.run(input, params);
         self.system_meta.last_change_tick = change_tick;
         out

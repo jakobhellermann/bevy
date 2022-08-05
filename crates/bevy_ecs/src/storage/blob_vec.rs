@@ -139,13 +139,14 @@ impl BlobVec {
     }
 
     /// # Safety
-    /// - index must be in bounds
+    /// - index must be in-bounds
     /// - the memory in the [`BlobVec`] starting at index `index`, of a size matching this [`BlobVec`]'s
     /// `item_layout`, must have been previously allocated.
     #[inline]
     pub unsafe fn initialize_unchecked(&mut self, index: usize, value: OwningPtr<'_>) {
         debug_assert!(index < self.len());
-        let ptr = self.get_unchecked_mut(index);
+        // SAFETY: index is in-bounds as per the functions safety guarantee
+        let ptr = unsafe { self.get_unchecked_mut(index) };
         std::ptr::copy_nonoverlapping::<u8>(value.as_ptr(), ptr.as_ptr(), self.item_layout.size());
     }
 

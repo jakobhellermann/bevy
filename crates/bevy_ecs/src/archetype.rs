@@ -379,6 +379,7 @@ impl SparseSetIndex for ArchetypeComponentId {
 }
 
 pub struct Archetypes {
+    // INVARIANT: always contains the resource archetype at index `ArchetypeId::RESOURCE.0`
     pub(crate) archetypes: Vec<Archetype>,
     pub(crate) archetype_component_count: usize,
     archetype_ids: HashMap<ArchetypeIdentity, ArchetypeId>,

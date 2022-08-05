@@ -283,7 +283,8 @@ impl std::fmt::Debug for ComponentDescriptor {
 impl ComponentDescriptor {
     // SAFETY: The pointer points to a valid value of type `T` and it is safe to drop this value.
     unsafe fn drop_ptr<T>(x: OwningPtr<'_>) {
-        x.drop_as::<T>();
+        // SAFETY: `x` points to a `T` as required in the functions safety comment
+        unsafe { x.drop_as::<T>() };
     }
 
     /// Create a new `ComponentDescriptor` for the type `T`.
@@ -430,7 +431,8 @@ impl Components {
     #[inline]
     pub unsafe fn get_info_unchecked(&self, id: ComponentId) -> &ComponentInfo {
         debug_assert!(id.index() < self.components.len());
-        self.components.get_unchecked(id.0)
+        // SAFETY: `id` is a valid component id and therefore exists in the component info vec
+        unsafe { self.components.get_unchecked(id.0) }
     }
 
     /// Type-erased equivalent of [`Components::component_id`].

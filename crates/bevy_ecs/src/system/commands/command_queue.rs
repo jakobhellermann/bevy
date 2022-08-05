@@ -5,6 +5,8 @@ use crate::world::World;
 
 struct CommandMeta {
     offset: usize,
+    // INVARIANT: the func may only ever be called **once** to not violate ownership of non-copy commands,
+    // and must only be called on the bytes in the `bytes` of the `CommandQueue` at the `offset` specified
     func: unsafe fn(value: *mut MaybeUninit<u8>, world: &mut World),
 }
 
@@ -34,11 +36,13 @@ impl CommandQueue {
     where
         C: Command,
     {
-        /// SAFETY: This function is only every called when the `command` bytes is the associated
-        /// [`Commands`] `T` type. Also this only reads the data via `read_unaligned` so unaligned
-        /// accesses are safe.
+        /// SAFETY: must only be used as the `func` in `CommandMeta`,
+        /// which is only used once on bytes of the correct type
         unsafe fn write_command<T: Command>(command: *mut MaybeUninit<u8>, world: &mut World) {
-            let command = command.cast::<T>().read_unaligned();
+            // SAFETY:
+            // - value is valid for reads because `write_command` is used as the `func` in `CommandMeta`
+            // which is only called **once** on bytes of a valid value of `T`
+            let command = unsafe { command.cast::<T>().read_unaligned() };
             command.write(world);
         }
 

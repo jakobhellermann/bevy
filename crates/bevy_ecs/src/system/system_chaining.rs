@@ -73,8 +73,10 @@ impl<SystemA: System, SystemB: System<In = SystemA::Out>> System for ChainSystem
     }
 
     unsafe fn run_unsafe(&mut self, input: Self::In, world: &World) -> Self::Out {
-        let out = self.system_a.run_unsafe(input, world);
-        self.system_b.run_unsafe(out, world)
+        // SAFETY: This system only runs in parallel with other systems that do not conflict with the `archetype_component_access`
+        let out = unsafe { self.system_a.run_unsafe(input, world) };
+        // SAFETY: This system only runs in parallel with other systems that do not conflict with the `archetype_component_access`
+        unsafe { self.system_b.run_unsafe(out, world) }
     }
 
     fn apply_buffers(&mut self, world: &mut World) {

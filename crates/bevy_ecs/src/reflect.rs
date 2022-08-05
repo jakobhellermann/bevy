@@ -86,7 +86,8 @@ impl ReflectComponent {
         world: &'a World,
         entity: Entity,
     ) -> Option<ReflectMut<'a>> {
-        (self.reflect_mut)(world, entity)
+        // SAFETY: caller promises to not violate aliasing rules
+        unsafe { (self.reflect_mut)(world, entity) }
     }
 
     /// Gets the value of this [`Component`] type from entity from `source_world` and [applies](Self::apply()) it to the value of this [`Component`] type in entity in `destination_world`.
@@ -224,7 +225,7 @@ impl ReflectResource {
     /// * Don't call this method more than once in the same scope for a given [`Resource`].
     pub unsafe fn reflect_unchecked_mut<'a>(&self, world: &'a World) -> Option<ReflectMut<'a>> {
         // SAFETY: caller promises to uphold uniqueness guarantees
-        (self.reflect_unchecked_mut)(world)
+        unsafe { (self.reflect_unchecked_mut)(world) }
     }
 
     /// Gets the value of this [`Resource`] type from `source_world` and [applies](Self::apply()) it to the value of this [`Resource`] type in `destination_world`.

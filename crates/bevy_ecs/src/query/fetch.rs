@@ -529,10 +529,12 @@ unsafe impl WorldQuery for Entity {
         fetch: &mut <Self as WorldQueryGats<'w>>::Fetch,
         table_row: usize,
     ) -> QueryItem<'w, Self> {
-        let entities = fetch
-            .entities
-            .unwrap_or_else(|| debug_checked_unreachable());
-        *entities.get(table_row)
+        let entities = fetch.entities.unwrap_or_else(|| {
+            // SAFETY: `table_fetch` must be called after `set_table` which sets the entitites
+            unsafe { debug_checked_unreachable() }
+        });
+        // SAFETY: as per `table_fetch´ guarantees, `table_row` is in the range of the current table
+        unsafe { *entities.get(table_row) }
     }
 
     #[inline]
@@ -540,10 +542,12 @@ unsafe impl WorldQuery for Entity {
         fetch: &mut <Self as WorldQueryGats<'w>>::Fetch,
         archetype_index: usize,
     ) -> <Self as WorldQueryGats<'w>>::Item {
-        let entities = fetch
-            .entities
-            .unwrap_or_else(|| debug_checked_unreachable());
-        *entities.get(archetype_index)
+        let entities = fetch.entities.unwrap_or_else(|| {
+            // SAFETY: `table_fetch` must be called after `set_table` which sets the entitites
+            unsafe { debug_checked_unreachable() }
+        });
+        // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current archetype
+        unsafe { *entities.get(archetype_index) }
     }
 
     fn update_component_access(_state: &Self::State, _access: &mut FilteredAccess<ComponentId>) {}
@@ -629,7 +633,9 @@ unsafe impl<T: Component> WorldQuery for &T {
                 let column = tables[archetype.table_id()]
                     .get_column(component_id)
                     .unwrap();
-                fetch.table_components = Some(column.get_data_slice().into());
+                // SAFETY: the type `T` is the type of the items in this column, because
+                // `component_id` is the component id for type `T` (see `init_state`)
+                fetch.table_components = Some(unsafe { column.get_data_slice() }.into());
             }
             StorageType::SparseSet => fetch.entities = Some(archetype.entities().into()),
         }
@@ -637,7 +643,10 @@ unsafe impl<T: Component> WorldQuery for &T {
 
     #[inline]
     unsafe fn set_table<'w>(fetch: &mut ReadFetch<'w, T>, &id: &ComponentId, table: &'w Table) {
-        fetch.table_components = Some(table.get_column(id).unwrap().get_data_slice().into());
+        // SAFETY: the type `T` is the type of the items in this column, because
+        // `id` is the component id for type `T` (see `init_state`)
+        fetch.table_components =
+            Some(unsafe { table.get_column(id).unwrap().get_data_slice() }.into());
     }
 
     #[inline]

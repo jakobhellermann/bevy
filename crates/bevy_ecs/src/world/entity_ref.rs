@@ -550,7 +550,7 @@ impl<'w> EntityMut<'w> {
 /// # Safety
 /// - `entity_location` must be within bounds of the given archetype and `entity` must exist inside
 /// the archetype
-/// - `component_id` must be valid
+/// - `component_id` must be valid in the `world`
 #[inline]
 pub(crate) unsafe fn get_component(
     world: &World,
@@ -559,15 +559,15 @@ pub(crate) unsafe fn get_component(
     location: EntityLocation,
 ) -> Option<Ptr<'_>> {
     let archetype = &world.archetypes[location.archetype_id];
-    // SAFETY: component_id exists and is therefore valid
-    let component_info = world.components.get_info_unchecked(component_id);
+    // SAFETY: component_id exists in the world and is therefore valid
+    let component_info = unsafe { world.components.get_info_unchecked(component_id) };
     match component_info.storage_type() {
         StorageType::Table => {
             let table = &world.storages.tables[archetype.table_id()];
             let components = table.get_column(component_id)?;
             let table_row = archetype.entity_table_row(location.index);
             // SAFETY: archetypes only store valid table_rows and the stored component type is T
-            Some(components.get_data_unchecked(table_row))
+            Some(unsafe { components.get_data_unchecked(table_row) })
         }
         StorageType::SparseSet => world
             .storages

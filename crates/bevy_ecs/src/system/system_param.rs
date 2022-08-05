@@ -1440,7 +1440,7 @@ where
         change_tick: u32,
     ) -> Self::Item {
         // SAFETY: We properly delegate SystemParamState
-        StaticSystemParam(S::get_param(&mut state.0, system_meta, world, change_tick))
+        StaticSystemParam(unsafe { S::get_param(&mut state.0, system_meta, world, change_tick) })
     }
 }
 

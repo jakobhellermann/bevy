@@ -150,7 +150,8 @@ impl Column {
     // # Safety
     // - ptr must point to valid data of this column's component type
     pub(crate) unsafe fn push(&mut self, ptr: OwningPtr<'_>, ticks: ComponentTicks) {
-        self.data.push(ptr);
+        // SAFETY: `ptr` is valid for the blob vec layout, because it is valid for the column component type
+        unsafe { self.data.push(ptr) };
         self.ticks.push(UnsafeCell::new(ticks));
     }
 
@@ -168,7 +169,8 @@ impl Column {
     /// # Safety
     /// The type `T` must be the type of the items in this column.
     pub unsafe fn get_data_slice<T>(&self) -> &[UnsafeCell<T>] {
-        self.data.get_slice()
+        // SAFETY: requirements are met by the caller
+        unsafe { self.data.get_slice() }
     }
 
     #[inline]
@@ -182,7 +184,8 @@ impl Column {
     #[inline]
     pub unsafe fn get_data_unchecked(&self, row: usize) -> Ptr<'_> {
         debug_assert!(row < self.data.len());
-        self.data.get_unchecked(row)
+        // SAFETY: requirements are met by the caller
+        unsafe { self.data.get_unchecked(row) }
     }
 
     /// # Safety
@@ -191,7 +194,8 @@ impl Column {
     #[inline]
     pub(crate) unsafe fn get_data_unchecked_mut(&mut self, row: usize) -> PtrMut<'_> {
         debug_assert!(row < self.data.len());
-        self.data.get_unchecked_mut(row)
+        // SAFETY: requirements are met by the caller
+        unsafe { self.data.get_unchecked_mut(row) }
     }
 
     /// # Safety
@@ -199,7 +203,8 @@ impl Column {
     #[inline]
     pub unsafe fn get_ticks_unchecked(&self, row: usize) -> &UnsafeCell<ComponentTicks> {
         debug_assert!(row < self.ticks.len());
-        self.ticks.get_unchecked(row)
+        // SAFETY: requirements are met by the caller
+        unsafe { self.ticks.get_unchecked(row) }
     }
 
     pub fn clear(&mut self) {
@@ -247,7 +252,8 @@ impl Table {
     /// `row` must be in-bounds
     pub(crate) unsafe fn swap_remove_unchecked(&mut self, row: usize) -> Option<Entity> {
         for column in self.columns.values_mut() {
-            column.swap_remove_unchecked(row);
+            // SAFETY: row is in-bounds
+            unsafe { column.swap_remove_unchecked(row) };
         }
         let is_last = row == self.entities.len() - 1;
         self.entities.swap_remove(row);
@@ -272,7 +278,8 @@ impl Table {
     ) -> TableMoveResult {
         debug_assert!(row < self.len());
         let is_last = row == self.entities.len() - 1;
-        let new_row = new_table.allocate(self.entities.swap_remove(row));
+        // Safety: the allocated row is written to immediately with valid values in each column
+        let new_row = unsafe { new_table.allocate(self.entities.swap_remove(row)) };
         for (component_id, column) in self.columns.iter_mut() {
             if let Some(new_column) = new_table.get_column_mut(*component_id) {
                 new_column.initialize_from_unchecked(column, row, new_row);

@@ -116,7 +116,9 @@ macro_rules! tuple_impl {
                 F: FnMut(&mut T) -> OwningPtr<'_>
             {
                 #[allow(non_snake_case)]
-                ($(func(ctx).read::<$name>(),)*)
+                // SAFETY: `func(ctx)` is of type `$name`, because `from_components` is guaranteed to return data for each component
+                // in the order of the bundle's components
+                ($(unsafe { func(ctx).read::<$name>() },)*)
             }
 
             #[allow(unused_variables, unused_mut)]

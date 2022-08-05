@@ -886,7 +886,8 @@ impl World {
     #[inline]
     pub unsafe fn get_resource_unchecked_mut<R: Resource>(&self) -> Option<Mut<'_, R>> {
         let component_id = self.components.get_resource_id(TypeId::of::<R>())?;
-        self.get_resource_unchecked_mut_with_id(component_id)
+        // SAFETY: `component_id` is for the type `R`, mutability guarantees are upheld by the caller
+        unsafe { self.get_resource_unchecked_mut_with_id(component_id) }
     }
 
     /// Gets an immutable reference to the non-send resource of the given type, if it exists.
@@ -955,7 +956,8 @@ impl World {
     #[inline]
     pub unsafe fn get_non_send_resource_unchecked_mut<R: 'static>(&self) -> Option<Mut<'_, R>> {
         let component_id = self.components.get_resource_id(TypeId::of::<R>())?;
-        self.get_non_send_unchecked_mut_with_id(component_id)
+        // SAFETY: `component_id` is for the type `R`, mutability guarantees are upheld by the caller
+        unsafe { self.get_non_send_unchecked_mut_with_id(component_id) }
     }
 
     /// For a given batch of ([Entity], [Bundle]) pairs, either spawns each [Entity] with the given
@@ -1271,10 +1273,10 @@ impl World {
             )
         });
         // SAFETY: component_id is valid, checked by the lines above
-        let column = self.initialize_resource_internal(component_id);
+        let column = unsafe { self.initialize_resource_internal(component_id) };
         if column.is_empty() {
             // SAFETY: column is of type R and has been allocated above
-            column.push(value, ComponentTicks::new(change_tick));
+            unsafe { column.push(value, ComponentTicks::new(change_tick)) };
         } else {
             let ptr = column.get_data_unchecked_mut(0);
             std::ptr::copy_nonoverlapping::<u8>(
@@ -1290,11 +1292,12 @@ impl World {
     /// `component_id` must be valid for this world
     #[inline]
     unsafe fn initialize_resource_internal(&mut self, component_id: ComponentId) -> &mut Column {
-        // SAFETY: resource archetype always exists
-        let resource_archetype = self
-            .archetypes
-            .archetypes
-            .get_unchecked_mut(ArchetypeId::RESOURCE.index());
+        // SAFETY: resource archetype always exists by construction
+        let resource_archetype = unsafe {
+            self.archetypes
+                .archetypes
+                .get_unchecked_mut(ArchetypeId::RESOURCE.index())
+        };
         let resource_archetype_components = &mut resource_archetype.components;
         let archetype_component_count = &mut self.archetypes.archetype_component_count;
         let components = &self.components;
@@ -1311,7 +1314,8 @@ impl World {
                     },
                 );
                 *archetype_component_count += 1;
-                let component_info = components.get_info_unchecked(component_id);
+                // SAFETY: `component_id` is valid for this world as per the functions safety guarantee
+                let component_info = unsafe { components.get_info_unchecked(component_id) };
                 Column::with_capacity(component_info, 1)
             })
     }
