@@ -321,7 +321,8 @@ macro_rules! impl_query_filter_tuple {
             unsafe fn init_fetch<'w>(world: &'w World, state: &Self::State, last_change_tick: u32, change_tick: u32) -> <Self as WorldQueryGats<'w>>::Fetch {
                 let ($($filter,)*) = state;
                 ($(OrFetch {
-                    fetch: $filter::init_fetch(world, $filter, last_change_tick, change_tick),
+                    // SAFETY: we only call `init_fetch` for each element of the tuple, the requirements are met by the caller
+                    fetch: unsafe { $filter::init_fetch(world, $filter, last_change_tick, change_tick) },
                     matches: false,
                 },)*)
             }
@@ -333,7 +334,8 @@ macro_rules! impl_query_filter_tuple {
                 $(
                     $filter.matches = $filter::matches_component_set($state, &|id| table.has_column(id));
                     if $filter.matches {
-                        $filter::set_table(&mut $filter.fetch, $state, table);
+                        // SAFETY: we only call `set_table` for each element of the tuple, the requirements are met by the caller
+                        unsafe { $filter::set_table(&mut $filter.fetch, $state, table) };
                     }
                 )*
             }
@@ -345,7 +347,8 @@ macro_rules! impl_query_filter_tuple {
                 $(
                     $filter.matches = $filter::matches_component_set($state, &|id| archetype.contains(id));
                     if $filter.matches {
-                        $filter::set_archetype(&mut $filter.fetch, $state, archetype, tables);
+                        // SAFETY: we only call `set_archetype` for each element of the tuple, the requirements are met by the caller
+                        unsafe { $filter::set_archetype(&mut $filter.fetch, $state, archetype, tables) };
                     }
                 )*
             }
@@ -353,23 +356,27 @@ macro_rules! impl_query_filter_tuple {
             #[inline]
             unsafe fn table_fetch<'w>(fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, table_row: usize) -> <Self as WorldQueryGats<'w>>::Item {
                 let ($($filter,)*) = fetch;
-                false $(|| ($filter.matches && $filter::table_filter_fetch(&mut $filter.fetch, table_row)))*
+                // SAFETY: we only call `table_filter_fetch` for each element of the tuple, the requirements are met by the caller
+                false $(|| ($filter.matches && unsafe { $filter::table_filter_fetch(&mut $filter.fetch, table_row) }))*
             }
 
             #[inline]
             unsafe fn archetype_fetch<'w>(fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, archetype_index: usize) -> <Self as WorldQueryGats<'w>>::Item {
                 let ($($filter,)*) = fetch;
-                false $(|| ($filter.matches && $filter::archetype_filter_fetch(&mut $filter.fetch, archetype_index)))*
+                // SAFETY: we only call `archetype_filter_fetch` for each element of the tuple, the requirements are met by the caller
+                false $(|| ($filter.matches && unsafe { $filter::archetype_filter_fetch(&mut $filter.fetch, archetype_index) }))*
             }
 
             #[inline]
             unsafe fn table_filter_fetch(fetch: &mut QueryFetch<'_, Self>, table_row: usize) -> bool {
-                Self::table_fetch(fetch, table_row)
+                // SAFETY: `table_fetch` has the same safety requirements as `table_filter_fetch`
+                unsafe { Self::table_fetch(fetch, table_row) }
             }
 
             #[inline]
             unsafe fn archetype_filter_fetch(fetch: &mut QueryFetch<'_, Self>, archetype_index: usize) -> bool {
-                Self::archetype_fetch(fetch, archetype_index)
+                // SAFETY: `archetype_fetch` has the same safety requirements as `archetype_filter_fetch`
+                unsafe { Self::archetype_fetch(fetch, archetype_index)}
             }
 
             fn update_component_access(state: &Self::State, access: &mut FilteredAccess<ComponentId>) {
@@ -496,23 +503,41 @@ macro_rules! impl_tick_filter {
             }
 
             unsafe fn table_fetch<'w>(fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, table_row: usize) -> <Self as WorldQueryGats<'w>>::Item {
-                $is_detected(&*(fetch.table_ticks.unwrap_or_else(|| debug_checked_unreachable()).get(table_row)).deref(), fetch.last_change_tick, fetch.change_tick)
+                let table_ticks = fetch.table_ticks.unwrap_or_else(|| {
+                        // SAFETY: `table_fetch` is called after `set_table` which sets `table_ticks`
+                        unsafe { debug_checked_unreachable() }
+                });
+                $is_detected(
+                    // SAFETY: `table_row` is valid as per the functions safety requirements
+                    unsafe { table_ticks.get(table_row).deref() },
+                    fetch.last_change_tick,
+                    fetch.change_tick
+                )
             }
 
             unsafe fn archetype_fetch<'w>(fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, archetype_index: usize) -> <Self as WorldQueryGats<'w>>::Item {
                 match T::Storage::STORAGE_TYPE {
                     StorageType::Table => {
-                        let table_row = *fetch.entity_table_rows.unwrap_or_else(|| debug_checked_unreachable()).get(archetype_index);
-                        $is_detected(&*(fetch.table_ticks.unwrap_or_else(|| debug_checked_unreachable()).get(table_row)).deref(), fetch.last_change_tick, fetch.change_tick)
+                        let (entity_table_rows, table_ticks) = fetch.entity_table_rows.zip(fetch.table_ticks).unwrap_or_else(|| {
+                            // SAFETY: `archetype_fetch` is called after `set_archetype` which sets `entity_table_rows` and `table_ticks`
+                            unsafe { debug_checked_unreachable() }
+                        });
+                        // SAFETY: `archetype_index` is valid as per the functions safety requirements
+                        let table_row = unsafe { *entity_table_rows.get(archetype_index) };
+                        // SAFETY: `table_row` is valid because it was just obtained using the `entity_table_rows`
+                        $is_detected(unsafe { table_ticks.get(table_row).deref() }, fetch.last_change_tick, fetch.change_tick)
                     }
                     StorageType::SparseSet => {
-                        let entity = *fetch.entities.unwrap_or_else(|| debug_checked_unreachable()).get(archetype_index);
-                        let ticks = fetch
-                            .sparse_set
-                            .unwrap_or_else(|| debug_checked_unreachable())
+                        let (entities, sparse_set) = fetch.entities.zip(fetch.sparse_set)
+                            .unwrap_or_else(|| {
+                                // SAFETY: `archetype_fetch` is called after `set_archetype` which sets `entities` and `sparse_set`
+                                unsafe { debug_checked_unreachable() };
+                            });
+                        // SAFETY: `archetype_index` is valid as required in the functions safety requirements
+                        let entity = unsafe { *entities.get(archetype_index) };
+                        let ticks = sparse_set
                             .get_ticks(entity)
-                            .map(|ticks| &*ticks.get())
-                            .cloned()
+                            .map(|ticks| unsafe { ticks.read() })
                             .unwrap();
                         $is_detected(&ticks, fetch.last_change_tick, fetch.change_tick)
                     }
@@ -521,12 +546,14 @@ macro_rules! impl_tick_filter {
 
             #[inline]
             unsafe fn table_filter_fetch(fetch: &mut QueryFetch<'_, Self>, table_row: usize) -> bool {
-                Self::table_fetch(fetch, table_row)
+                // SAFETY: `table_fetch` has the same safety requirements as `table_filter_fetch`
+                unsafe { Self::table_fetch(fetch, table_row) }
             }
 
             #[inline]
             unsafe fn archetype_filter_fetch(fetch: &mut QueryFetch<'_, Self>, archetype_index: usize) -> bool {
-                Self::archetype_fetch(fetch, archetype_index)
+                // SAFETY: `archetype_fetch` has the same safety requirements as `archetype_filter_fetch`
+                unsafe { Self::archetype_fetch(fetch, archetype_index) }
             }
 
             #[inline]

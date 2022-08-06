@@ -10,11 +10,13 @@ pub use filter::*;
 pub use iter::*;
 pub use state::*;
 
+// SAFETY: same safety requirements as [std::hint::unreachable_unchecked]
 #[allow(unreachable_code)]
 pub(crate) unsafe fn debug_checked_unreachable() -> ! {
     #[cfg(debug_assertions)]
     unreachable!();
-    std::hint::unreachable_unchecked();
+    // SAFETY: same safety requirements as `debug_checked_unreachable`
+    unsafe { std::hint::unreachable_unchecked() };
 }
 
 #[cfg(test)]
