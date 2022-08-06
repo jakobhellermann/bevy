@@ -819,7 +819,9 @@ unsafe impl<'__w, T: Component> WorldQuery for &'__w mut T {
                 let column = tables[archetype.table_id()]
                     .get_column(component_id)
                     .unwrap();
-                fetch.table_components = Some(column.get_data_slice().into());
+                // SAFETY: the type `T` is the type of the items in this column, because
+                // `component_id` is the component id for type `T` (see `init_state`)
+                fetch.table_components = Some(unsafe { column.get_data_slice() }.into());
                 fetch.table_ticks = Some(column.get_ticks_slice().into());
             }
             StorageType::SparseSet => fetch.entities = Some(archetype.entities().into()),
@@ -833,7 +835,9 @@ unsafe impl<'__w, T: Component> WorldQuery for &'__w mut T {
         table: &'w Table,
     ) {
         let column = table.get_column(component_id).unwrap();
-        fetch.table_components = Some(column.get_data_slice().into());
+        // SAFETY: the type `T` is the type of the items in this column, because
+        // `component_id` is the component id for type `T` (see `init_state`)
+        fetch.table_components = Some(unsafe { column.get_data_slice() }.into());
         fetch.table_ticks = Some(column.get_ticks_slice().into());
     }
 
@@ -847,30 +851,44 @@ unsafe impl<'__w, T: Component> WorldQuery for &'__w mut T {
                 let (entity_table_rows, (table_components, table_ticks)) = fetch
                     .entity_table_rows
                     .zip(fetch.table_components.zip(fetch.table_ticks))
-                    .unwrap_or_else(|| debug_checked_unreachable());
-                let table_row = *entity_table_rows.get(archetype_index);
+                    .unwrap_or_else(|| {
+                        // SAFETY: `archetype_fetch` must be called after `set_archetype`,
+                        // which sets `entity_table_rows` and `components` for `Table` storages
+                        unsafe { debug_checked_unreachable() }
+                    });
+
+                // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current table
+                let table_row = unsafe { *entity_table_rows.get(archetype_index) };
+                // SAFETY: `table_row` is valid as it was just obtained from `entity_table_rows`,
+                let data = unsafe { table_components.get(table_row) };
                 Mut {
-                    value: table_components.get(table_row).deref_mut(),
+                    value: unsafe { data.deref_mut() },
                     ticks: Ticks {
-                        component_ticks: table_ticks.get(table_row).deref_mut(),
+                        component_ticks: unsafe { table_ticks.get(table_row).deref_mut() },
                         change_tick: fetch.change_tick,
                         last_change_tick: fetch.last_change_tick,
                     },
                 }
             }
             StorageType::SparseSet => {
-                let (entities, sparse_set) = fetch
-                    .entities
-                    .zip(fetch.sparse_set)
-                    .unwrap_or_else(|| debug_checked_unreachable());
-                let entity = *entities.get(archetype_index);
-                let (component, component_ticks) = sparse_set
-                    .get_with_ticks(entity)
-                    .unwrap_or_else(|| debug_checked_unreachable());
+                let (entities, sparse_set) =
+                    fetch.entities.zip(fetch.sparse_set).unwrap_or_else(|| {
+                        // SAFETY:
+                        // `archetype_fetch` must be called after `set_archetype`, which sets `entities` for `SparseSet` storage,
+                        // `fetch` always sets the `sparse_set` when initialized for `SparseSet` storage
+                        unsafe { debug_checked_unreachable() }
+                    });
+                // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current table
+                let entity = unsafe { *entities.get(archetype_index) };
+                let (component, component_ticks) =
+                    sparse_set.get_with_ticks(entity).unwrap_or_else(|| {
+                        // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current table
+                        unsafe { debug_checked_unreachable() }
+                    });
                 Mut {
-                    value: component.assert_unique().deref_mut(),
+                    value: unsafe { component.assert_unique().deref_mut() },
                     ticks: Ticks {
-                        component_ticks: component_ticks.deref_mut(),
+                        component_ticks: unsafe { component_ticks.deref_mut() },
                         change_tick: fetch.change_tick,
                         last_change_tick: fetch.last_change_tick,
                     },
@@ -887,11 +905,17 @@ unsafe impl<'__w, T: Component> WorldQuery for &'__w mut T {
         let (table_components, table_ticks) = fetch
             .table_components
             .zip(fetch.table_ticks)
-            .unwrap_or_else(|| debug_checked_unreachable());
+            .unwrap_or_else(|| {
+                // SAFETY: `table_fetch` must be called after `set_table`,
+                // which sets `table_components` for `Table` storages
+                unsafe { debug_checked_unreachable() }
+            });
+        // SAFETY: as per `table_fetch` guarantees, `table_row` is guaranteed to be valid
+        let data = unsafe { table_components.get(table_row) };
         Mut {
-            value: table_components.get(table_row).deref_mut(),
+            value: unsafe { data.deref_mut() },
             ticks: Ticks {
-                component_ticks: table_ticks.get(table_row).deref_mut(),
+                component_ticks: unsafe { table_ticks.get(table_row).deref_mut() },
                 change_tick: fetch.change_tick,
                 last_change_tick: fetch.last_change_tick,
             },
@@ -988,7 +1012,8 @@ unsafe impl<T: WorldQuery> WorldQuery for Option<T> {
         change_tick: u32,
     ) -> OptionFetch<'w, T> {
         OptionFetch {
-            fetch: T::init_fetch(world, state, last_change_tick, change_tick),
+            // SAFETY: we only defer to `<T as WorldQuery>::init_fetch`, and the safety requirements carry over
+            fetch: unsafe { T::init_fetch(world, state, last_change_tick, change_tick) },
             matches: false,
         }
     }
@@ -1002,7 +1027,8 @@ unsafe impl<T: WorldQuery> WorldQuery for Option<T> {
     ) {
         fetch.matches = T::matches_component_set(state, &|id| archetype.contains(id));
         if fetch.matches {
-            T::set_archetype(&mut fetch.fetch, state, archetype, tables);
+            // SAFETY: we only defer to `<T as WorldQuery>::set_archetype`, and the safety requirements carry over
+            unsafe { T::set_archetype(&mut fetch.fetch, state, archetype, tables) };
         }
     }
 
@@ -1010,7 +1036,8 @@ unsafe impl<T: WorldQuery> WorldQuery for Option<T> {
     unsafe fn set_table<'w>(fetch: &mut OptionFetch<'w, T>, state: &T::State, table: &'w Table) {
         fetch.matches = T::matches_component_set(state, &|id| table.has_column(id));
         if fetch.matches {
-            T::set_table(&mut fetch.fetch, state, table);
+            // SAFETY: we only defer to `<T as WorldQuery>::set_table`, and the safety requirements carry over
+            unsafe { T::set_table(&mut fetch.fetch, state, table) };
         }
     }
 
@@ -1020,7 +1047,8 @@ unsafe impl<T: WorldQuery> WorldQuery for Option<T> {
         archetype_index: usize,
     ) -> <Self as WorldQueryGats<'w>>::Item {
         if fetch.matches {
-            Some(T::archetype_fetch(&mut fetch.fetch, archetype_index))
+            // SAFETY: we only defer to `<T as WorldQuery>::archetype_fetch`, and the safety requirements carry over
+            Some(unsafe { T::archetype_fetch(&mut fetch.fetch, archetype_index) })
         } else {
             None
         }
@@ -1032,7 +1060,8 @@ unsafe impl<T: WorldQuery> WorldQuery for Option<T> {
         table_row: usize,
     ) -> <Self as WorldQueryGats<'w>>::Item {
         if fetch.matches {
-            Some(T::table_fetch(&mut fetch.fetch, table_row))
+            // SAFETY: we only defer to `<T as WorldQuery>::table_fetch`, and the safety requirements carry over
+            Some(unsafe { T::table_fetch(&mut fetch.fetch, table_row) })
         } else {
             None
         }
@@ -1239,35 +1268,38 @@ unsafe impl<T: Component> WorldQuery for ChangeTrackers<T> {
     ) -> <Self as WorldQueryGats<'w>>::Item {
         match T::Storage::STORAGE_TYPE {
             StorageType::Table => {
-                let entity_table_rows = fetch
+                let (entity_table_rows, table_ticks) = fetch
                     .entity_table_rows
-                    .unwrap_or_else(|| debug_checked_unreachable());
-                let table_row = *entity_table_rows.get(archetype_index);
+                    .zip(fetch.table_ticks)
+                    .unwrap_or_else(|| {
+                        // SAFETY: `archetype_fetch` must be called after `set_archetype`,
+                        // which sets `entity_table_rows` and `table_ticks` for `Table` storages
+                        unsafe { debug_checked_unreachable() }
+                    });
+                // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current table
+                let table_row = unsafe { *entity_table_rows.get(archetype_index) };
                 ChangeTrackers {
-                    component_ticks: {
-                        let table_ticks = fetch
-                            .table_ticks
-                            .unwrap_or_else(|| debug_checked_unreachable());
-                        table_ticks.get(table_row).read()
-                    },
+                    // SAFETY: `table_row` is valid as it was just obtained from `entity_table_rows`
+                    component_ticks: unsafe { table_ticks.get(table_row).read() },
                     marker: PhantomData,
                     last_change_tick: fetch.last_change_tick,
                     change_tick: fetch.change_tick,
                 }
             }
             StorageType::SparseSet => {
-                let entities = fetch
-                    .entities
-                    .unwrap_or_else(|| debug_checked_unreachable());
-                let entity = *entities.get(archetype_index);
+                let (entities, sparse_set) =
+                    fetch.entities.zip(fetch.sparse_set).unwrap_or_else(|| {
+                        // SAFETY: `archetype_fetch` must be called after `set_archetype`,
+                        // which sets `entities` and `sparse_set` for `SparseSet` storages
+                        unsafe { debug_checked_unreachable() }
+                    });
+                // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current table
+                let entity = unsafe { *entities.get(archetype_index) };
                 ChangeTrackers {
-                    component_ticks: fetch
-                        .sparse_set
-                        .unwrap_or_else(|| debug_checked_unreachable())
+                    component_ticks: sparse_set
                         .get_ticks(entity)
-                        .map(|ticks| &*ticks.get())
-                        .cloned()
-                        .unwrap_or_else(|| debug_checked_unreachable()),
+                        .map(|ticks| unsafe { ticks.read() })
+                        .unwrap_or_else(|| unsafe { debug_checked_unreachable() }),
                     marker: PhantomData,
                     last_change_tick: fetch.last_change_tick,
                     change_tick: fetch.change_tick,
@@ -1285,8 +1317,8 @@ unsafe impl<T: Component> WorldQuery for ChangeTrackers<T> {
             component_ticks: {
                 let table_ticks = fetch
                     .table_ticks
-                    .unwrap_or_else(|| debug_checked_unreachable());
-                table_ticks.get(table_row).read()
+                    .unwrap_or_else(|| unsafe { debug_checked_unreachable() });
+                unsafe { table_ticks.get(table_row).read() }
             },
             marker: PhantomData,
             last_change_tick: fetch.last_change_tick,
