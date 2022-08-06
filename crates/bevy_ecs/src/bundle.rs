@@ -264,8 +264,9 @@ impl BundleInfo {
     }
 
     /// # Safety
-    /// `table` must be the "new" table for `entity`. `table_row` must have space allocated for the
-    /// `entity`, `bundle` must match this [`BundleInfo`]'s type
+    /// - `table` must be the "new" table for `entity`
+    /// - `table_row` must have space allocated for the `entity` in each column
+    /// - `bundle`, `add_bundle` must match this [`BundleInfo`]'s type
     #[inline]
     #[allow(clippy::too_many_arguments)]
     unsafe fn write_components<T: Bundle>(
@@ -282,26 +283,35 @@ impl BundleInfo {
         // bundle_info.component_ids are also in "bundle order"
         let mut bundle_component = 0;
         bundle.get_components(|component_ptr| {
-            let component_id = *self.component_ids.get_unchecked(bundle_component);
+            // SAFETY: `get_components` will call the callback once for every component,
+            // so `bundle_component` will be in range 0..self.component_ids.len()`
+            let component_id = unsafe { *self.component_ids.get_unchecked(bundle_component) };
             match self.storage_types[bundle_component] {
                 StorageType::Table => {
                     let column = table.get_column_mut(component_id).unwrap();
-                    match add_bundle.bundle_status.get_unchecked(bundle_component) {
+                    // SAFETY: `add_bundle` must match the `BundleInfo`s type, so each index must be valid
+                    match unsafe { add_bundle.bundle_status.get_unchecked(bundle_component) } {
                         ComponentStatus::Added => {
-                            column.initialize(
-                                table_row,
-                                component_ptr,
-                                ComponentTicks::new(change_tick),
-                            );
+                            // SAFETY: `initialize` assumes that the `table_row` has already been allocated, which we require from the caller
+                            unsafe {
+                                column.initialize(
+                                    table_row,
+                                    component_ptr,
+                                    ComponentTicks::new(change_tick),
+                                )
+                            };
                         }
                         ComponentStatus::Mutated => {
-                            column.replace(table_row, component_ptr, change_tick);
+                            // SAFETY: `initialize` assumes that the `table_row` has already been allocated, which we require from the caller
+                            unsafe { column.replace(table_row, component_ptr, change_tick) };
                         }
                     }
                 }
                 StorageType::SparseSet => {
                     let sparse_set = sparse_sets.get_mut(component_id).unwrap();
-                    sparse_set.insert(entity, component_ptr, change_tick);
+                    // SAFETY: `component_ptr` matches the `component_id` because `bundle.get_components` iterates over the data
+                    // in the same order as `self.component_ids`
+                    unsafe { sparse_set.insert(entity, component_ptr, change_tick) };
                 }
             }
             bundle_component += 1;
@@ -437,6 +447,7 @@ impl<'a, 'b> BundleInserter<'a, 'b> {
                     .edges()
                     .get_add_bundle(self.bundle_info.id)
                     .unwrap();
+
                 self.bundle_info.write_components(
                     self.table,
                     self.sparse_sets,
@@ -619,7 +630,8 @@ impl Bundles {
 
 /// # Safety
 ///
-/// `component_id` must be valid [`ComponentId`]'s
+/// - `component_id` must be valid [`ComponentId`]'s
+/// - `component_ids` must be in the correct order for the `BundleId`
 unsafe fn initialize_bundle(
     bundle_type_name: &'static str,
     component_ids: Vec<ComponentId>,
@@ -629,8 +641,8 @@ unsafe fn initialize_bundle(
     let mut storage_types = Vec::new();
 
     for &component_id in &component_ids {
-        // SAFETY: component_id exists and is therefore valid
-        let component_info = components.get_info_unchecked(component_id);
+        // SAFETY: `component_id` exists and is therefore valid
+        let component_info = unsafe { components.get_info_unchecked(component_id) };
         storage_types.push(component_info.storage_type());
     }
 
