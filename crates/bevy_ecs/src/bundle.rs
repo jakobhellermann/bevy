@@ -543,6 +543,7 @@ impl<'a, 'b> BundleInserter<'a, 'b> {
 pub(crate) struct BundleSpawner<'a, 'b> {
     pub(crate) archetype: &'a mut Archetype,
     pub(crate) entities: &'a mut Entities,
+    // INVARIANT: must match the `BundleInfo` below
     add_bundle: &'a AddBundle,
     bundle_info: &'b BundleInfo,
     table: &'a mut Table,
@@ -563,17 +564,26 @@ impl<'a, 'b> BundleSpawner<'a, 'b> {
         entity: Entity,
         bundle: T,
     ) -> EntityLocation {
-        let table_row = self.table.allocate(entity);
-        let location = self.archetype.allocate(entity, table_row);
-        self.bundle_info.write_components(
-            self.table,
-            self.sparse_sets,
-            self.add_bundle,
-            entity,
-            table_row,
-            self.change_tick,
-            bundle,
-        );
+        // SAFETY: the newly allocated row is immediately populated with valid values by the call to `self.bundle_info.write_components`
+        let table_row = unsafe { self.table.allocate(entity) };
+        // SAFETY: `table_row` is valid because it was just allocated, component values are immediately written to the relevant storages
+        // by the call to `self.bundle_info.write_components`
+        let location = unsafe { self.archetype.allocate(entity, table_row) };
+        // SAFETY:
+        // - `table` is be the new table for `entity`
+        // - `table_row` was just allocated so it has space for the entity in each column
+        // - `bundle`, `add_bundle` must match the `bundle_info`s type: promised by the caller
+        unsafe {
+            self.bundle_info.write_components(
+                self.table,
+                self.sparse_sets,
+                self.add_bundle,
+                entity,
+                table_row,
+                self.change_tick,
+                bundle,
+            );
+        }
         self.entities.meta[entity.id as usize].location = location;
 
         location
@@ -584,8 +594,10 @@ impl<'a, 'b> BundleSpawner<'a, 'b> {
     #[inline]
     pub unsafe fn spawn<T: Bundle>(&mut self, bundle: T) -> Entity {
         let entity = self.entities.alloc();
-        // SAFETY: entity is allocated (but non-existent), `T` matches this BundleInfo's type
-        self.spawn_non_existent(entity, bundle);
+        // SAFETY:
+        // - entity is allocated (but non-existent), see line above
+        // - `T` matches this BundleInfo's type, promised by the acller
+        unsafe { self.spawn_non_existent(entity, bundle) };
         entity
     }
 }
