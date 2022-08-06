@@ -659,20 +659,31 @@ unsafe impl<T: Component> WorldQuery for &T {
                 let (entity_table_rows, table_components) = fetch
                     .entity_table_rows
                     .zip(fetch.table_components)
-                    .unwrap_or_else(|| debug_checked_unreachable());
-                let table_row = *entity_table_rows.get(archetype_index);
-                table_components.get(table_row).deref()
+                    .unwrap_or_else(|| {
+                        // SAFETY: `archetype_fetch` must be called after `set_archetype`,
+                        // which sets `entity_table_rows` and `components` for `Table` storages
+                        unsafe { debug_checked_unreachable() }
+                    });
+                // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current table
+                let table_row = unsafe { *entity_table_rows.get(archetype_index) };
+                // SAFETY: `table_row` is valid as it was just obtained from `entity_table_rows`,
+                let data = unsafe { table_components.get(table_row) };
+                unsafe { data.deref() }
             }
             StorageType::SparseSet => {
-                let (entities, sparse_set) = fetch
-                    .entities
-                    .zip(fetch.sparse_set)
-                    .unwrap_or_else(|| debug_checked_unreachable());
-                let entity = *entities.get(archetype_index);
-                sparse_set
+                let (entities, sparse_set) =
+                    fetch.entities.zip(fetch.sparse_set).unwrap_or_else(|| {
+                        // SAFETY:
+                        // `archetype_fetch` must be called after `set_archetype`, which sets `entities` for `SparseSet` storage,
+                        // `fetch` always sets the `sparse_set` when initialized for `SparseSet` storage
+                        unsafe { debug_checked_unreachable() }
+                    });
+                // SAFETY: as per `archetype_fetch´ guarantees, `archetype_index` is in the range of the current table
+                let entity = unsafe { *entities.get(archetype_index) };
+                let data = sparse_set
                     .get(entity)
-                    .unwrap_or_else(|| debug_checked_unreachable())
-                    .deref::<T>()
+                    .unwrap_or_else(|| unsafe { debug_checked_unreachable() });
+                unsafe { data.deref::<T>() }
             }
         }
     }
@@ -682,10 +693,14 @@ unsafe impl<T: Component> WorldQuery for &T {
         fetch: &mut <Self as WorldQueryGats<'w>>::Fetch,
         table_row: usize,
     ) -> <Self as WorldQueryGats<'w>>::Item {
-        let components = fetch
-            .table_components
-            .unwrap_or_else(|| debug_checked_unreachable());
-        components.get(table_row).deref()
+        let components = fetch.table_components.unwrap_or_else(|| {
+            // SAFETY: `table_fetch` must be called after `set_table`,
+            // which sets `table_components` for `Table` storages
+            unsafe { debug_checked_unreachable() }
+        });
+        // SAFETY: as per `table_fetch` guarantees, `table_row` is guaranteed to be valid
+        let data = unsafe { components.get(table_row) };
+        unsafe { data.deref() }
     }
 
     fn update_component_access(
@@ -1344,7 +1359,8 @@ macro_rules! impl_tuple_fetch {
             #[allow(clippy::unused_unit)]
             unsafe fn init_fetch<'w>(_world: &'w World, state: &Self::State, _last_change_tick: u32, _change_tick: u32) -> <Self as WorldQueryGats<'w>>::Fetch {
                 let ($($name,)*) = state;
-                ($($name::init_fetch(_world, $name, _last_change_tick, _change_tick),)*)
+                // SAFETY: we only call `init_fetch` for each element of the tuple, the requirements are met by the caller
+                ($(unsafe { $name::init_fetch(_world, $name, _last_change_tick, _change_tick) }, )*)
             }
 
             const IS_DENSE: bool = true $(&& $name::IS_DENSE)*;
@@ -1355,42 +1371,48 @@ macro_rules! impl_tuple_fetch {
             unsafe fn set_archetype<'w>(_fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, _state: &Self::State, _archetype: &'w Archetype, _tables: &'w Tables) {
                 let ($($name,)*) = _fetch;
                 let ($($state,)*) = _state;
-                $($name::set_archetype($name, $state, _archetype, _tables);)*
+                // SAFETY: we only call `set_archetype` for each element of the tuple, the requirements are met by the caller
+                $(unsafe {  $name::set_archetype($name, $state, _archetype, _tables); })*
             }
 
             #[inline]
             unsafe fn set_table<'w>(_fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, _state: &Self::State, _table: &'w Table) {
                 let ($($name,)*) = _fetch;
                 let ($($state,)*) = _state;
-                $($name::set_table($name, $state, _table);)*
+                // SAFETY: we only call `set_table` for each element of the tuple, the requirements are met by the caller
+                $(unsafe { $name::set_table($name, $state, _table); })*
             }
 
             #[inline]
             #[allow(clippy::unused_unit)]
             unsafe fn table_fetch<'w>(_fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, _table_row: usize) -> QueryItem<'w, Self> {
                 let ($($name,)*) = _fetch;
-                ($($name::table_fetch($name, _table_row),)*)
+                // SAFETY: we only call `table_fetch` for each element of the tuple, the requirements are met by the caller
+                ($(unsafe { $name::table_fetch($name, _table_row) },)*)
             }
 
             #[inline]
             #[allow(clippy::unused_unit)]
             unsafe fn archetype_fetch<'w>(_fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, _archetype_index: usize) -> QueryItem<'w, Self> {
                 let ($($name,)*) = _fetch;
-                ($($name::archetype_fetch($name, _archetype_index),)*)
+                // SAFETY: we only call `archetype_fetch` for each element of the tuple, the requirements are met by the caller
+                ($(unsafe { $name::archetype_fetch($name, _archetype_index) },)*)
             }
 
             #[allow(unused_variables)]
             #[inline]
             unsafe fn table_filter_fetch(_fetch: &mut QueryFetch<'_, Self>, table_row: usize) -> bool {
                 let ($($name,)*) = _fetch;
-                true $(&& $name::table_filter_fetch($name, table_row))*
+                // SAFETY: we only call `table_filter_fetch` for each element of the tuple, the requirements are met by the caller
+                true $(&& unsafe { $name::table_filter_fetch($name, table_row) })*
             }
 
             #[allow(unused_variables)]
             #[inline]
             unsafe fn archetype_filter_fetch(_fetch: &mut QueryFetch<'_, Self>, archetype_index: usize) -> bool {
                 let ($($name,)*) = _fetch;
-                true $(&& $name::archetype_filter_fetch($name, archetype_index))*
+                // SAFETY: we only call `archetype_filter_fetch` for each element of the tuple, the requirements are met by the caller
+                true $(&& unsafe { $name::archetype_filter_fetch($name, archetype_index) })*
             }
 
             fn update_component_access(state: &Self::State, _access: &mut FilteredAccess<ComponentId>) {
@@ -1454,7 +1476,8 @@ macro_rules! impl_anytuple_fetch {
             #[allow(clippy::unused_unit)]
             unsafe fn init_fetch<'w>(_world: &'w World, state: &Self::State, _last_change_tick: u32, _change_tick: u32) -> <Self as WorldQueryGats<'w>>::Fetch {
                 let ($($name,)*) = state;
-                ($(($name::init_fetch(_world, $name, _last_change_tick, _change_tick), false),)*)
+                // SAFETY: we only call `init_fetch` for each element of the tuple, the requirements are met by the caller
+                ($((unsafe { $name::init_fetch(_world, $name, _last_change_tick, _change_tick) }, false),)*)
             }
 
             const IS_DENSE: bool = true $(&& $name::IS_DENSE)*;
@@ -1468,7 +1491,8 @@ macro_rules! impl_anytuple_fetch {
                 $(
                     $name.1 = $name::matches_component_set($state, &|id| _archetype.contains(id));
                     if $name.1 {
-                        $name::set_archetype(&mut $name.0, $state, _archetype, _tables);
+                        // SAFETY: we only call `set_archetype` for each element of the tuple, the requirements are met by the caller
+                        unsafe { $name::set_archetype(&mut $name.0, $state, _archetype, _tables) };
                     }
                 )*
             }
@@ -1480,7 +1504,8 @@ macro_rules! impl_anytuple_fetch {
                 $(
                     $name.1 = $name::matches_component_set($state, &|id| _table.has_column(id));
                     if $name.1 {
-                        $name::set_table(&mut $name.0, $state, _table);
+                        // SAFETY: we only call `set_table` for each element of the tuple, the requirements are met by the caller
+                        unsafe { $name::set_table(&mut $name.0, $state, _table) };
                     }
                 )*
             }
@@ -1490,7 +1515,8 @@ macro_rules! impl_anytuple_fetch {
             unsafe fn table_fetch<'w>(_fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, _table_row: usize) -> QueryItem<'w, Self> {
                 let ($($name,)*) = _fetch;
                 ($(
-                    $name.1.then(|| $name::table_fetch(&mut $name.0, _table_row)),
+                    // SAFETY: we only call `table_fetch` for each element of the tuple, the requirements are met by the caller
+                    $name.1.then(|| unsafe { $name::table_fetch(&mut $name.0, _table_row) }),
                 )*)
             }
 
@@ -1499,7 +1525,8 @@ macro_rules! impl_anytuple_fetch {
             unsafe fn archetype_fetch<'w>(_fetch: &mut <Self as WorldQueryGats<'w>>::Fetch, _archetype_index: usize) -> QueryItem<'w, Self> {
                 let ($($name,)*) = _fetch;
                 ($(
-                    $name.1.then(|| $name::archetype_fetch(&mut $name.0, _archetype_index)),
+                    // SAFETY: we only call `archetype_fetch` for each element of the tuple, the requirements are met by the caller
+                    $name.1.then(|| unsafe { $name::archetype_fetch(&mut $name.0, _archetype_index) }),
                 )*)
             }
 
