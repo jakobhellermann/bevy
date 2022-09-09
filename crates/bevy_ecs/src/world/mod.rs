@@ -1401,6 +1401,25 @@ impl World {
     /// use this in cases where the actual types are not known at compile time.**
     #[inline]
     pub fn get_resource_mut_by_id(&mut self, component_id: ComponentId) -> Option<MutUntyped<'_>> {
+        // SAFETY: unique world access
+        unsafe { self.get_resource_mut_by_id_unchecked(component_id) }
+    }
+
+    /// Gets a resource to the resource with the id [`ComponentId`] if it exists.
+    /// The returned pointer may be used to modify the resource, as long as the mutable borrow
+    /// of the [`World`] is still valid.
+    ///
+    /// **You should prefer to use the typed API [`World::get_resource_mut`] where possible and only
+    /// use this in cases where the actual types are not known at compile time.**
+    ///
+    /// # Safety
+    /// This will allow aliased mutable access to the given resource type. The caller must ensure
+    /// that there is either only one mutable access or multiple immutable accesses at a time.
+    #[inline]
+    pub unsafe fn get_resource_mut_by_id_unchecked(
+        &self,
+        component_id: ComponentId,
+    ) -> Option<MutUntyped<'_>> {
         let info = self.components.get_info(component_id)?;
         if !info.is_send_and_sync() {
             self.validate_non_send_access_untyped(info.name());
