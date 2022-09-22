@@ -74,7 +74,7 @@ impl<'a> Serialize for ComponentsSerializer<'a> {
         for component in self.components {
             state.serialize_element(&ReflectSerializer::new(
                 &**component,
-                &*self.registry.read(),
+                &self.registry.read(),
             ))?;
         }
         state.end()
