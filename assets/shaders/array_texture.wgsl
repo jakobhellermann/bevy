@@ -1,6 +1,8 @@
 #import bevy_pbr::mesh_view_bindings
 #import bevy_pbr::mesh_bindings
 
+#import bevy_core_pipeline::tonemapping
+
 #import bevy_pbr::pbr_types
 #import bevy_pbr::utils
 #import bevy_pbr::clustered_forward
@@ -51,5 +53,12 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     );
     pbr_input.V = calculate_view(in.world_position, pbr_input.is_orthographic);
 
-    return tone_mapping(pbr(pbr_input));
+    
+    let output_color = pbr(pbr_input);
+    
+    #ifdef TONEMAP_IN_SHADER
+    output_color = vec4<f32>(reinhard_luminance(output_color.rgb), output_color.a);
+    #endif
+
+    return output_color;
 }

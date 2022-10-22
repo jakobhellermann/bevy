@@ -640,7 +640,7 @@ impl SpecializedMeshPipeline for MeshPipeline {
 
         let format = match key.contains(MeshPipelineKey::HDR) {
             true => ViewTarget::TEXTURE_FORMAT_HDR,
-            false => TextureFormat::bevy_default(),
+            false => self.dummy_white_gpu_image.texture_format,
         };
 
         Ok(RenderPipelineDescriptor {
@@ -655,7 +655,7 @@ impl SpecializedMeshPipeline for MeshPipeline {
                 shader_defs,
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: self.dummy_white_gpu_image.texture_format,
+                    format,
                     blend,
                     write_mask: ColorWrites::ALL,
                 })],
