@@ -1173,6 +1173,7 @@ impl<'w, 's, Q: WorldQuery, F: ReadOnlyWorldQuery> Query<'w, 's, Q, F> {
         }
         let world = self.world;
         let entity_ref = world
+            .as_interior_mutable()
             .get_entity(entity)
             .ok_or(QueryComponentError::NoSuchEntity)?;
         let component_id = world
@@ -1189,7 +1190,7 @@ impl<'w, 's, Q: WorldQuery, F: ReadOnlyWorldQuery> Query<'w, 's, Q, F> {
             .has_write(archetype_component)
         {
             entity_ref
-                .get_unchecked_mut::<T>(self.last_change_tick, self.change_tick)
+                .get_mut_using_ticks::<T>(self.last_change_tick, self.change_tick)
                 .ok_or(QueryComponentError::MissingComponent)
         } else {
             Err(QueryComponentError::MissingWriteAccess)
