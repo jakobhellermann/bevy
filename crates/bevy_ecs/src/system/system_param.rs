@@ -521,7 +521,8 @@ impl<'w, 's, T: Resource> SystemParamFetch<'w, 's> for ResMutState<T> {
         change_tick: u32,
     ) -> Self::Item {
         let value = world
-            .get_resource_unchecked_mut_with_id(state.component_id)
+            .as_interior_mutable()
+            .get_resource_mut_with_id(state.component_id)
             .unwrap_or_else(|| {
                 panic!(
                     "Resource requested by {} does not exist: {}",
@@ -569,7 +570,8 @@ impl<'w, 's, T: Resource> SystemParamFetch<'w, 's> for OptionResMutState<T> {
         change_tick: u32,
     ) -> Self::Item {
         world
-            .get_resource_unchecked_mut_with_id(state.0.component_id)
+            .as_interior_mutable()
+            .get_resource_mut_with_id(state.0.component_id)
             .map(|value| ResMut {
                 value: value.value,
                 ticks: Ticks {
