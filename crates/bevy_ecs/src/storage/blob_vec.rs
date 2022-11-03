@@ -305,6 +305,28 @@ impl BlobVec {
     /// # Safety
     /// The type `T` must be the type of the items in this [`BlobVec`].
     pub unsafe fn get_slice<T>(&self) -> &[UnsafeCell<T>] {
+        dbg!(std::any::type_name::<T>()); // bevy_pbr::render::light::ExtractedPointLight
+        let ptr = self.data.as_ptr();
+
+        // code of `is_aligned_and_not_null`
+        assert!(dbg!(!ptr.is_null()));
+        assert!(dbg!((ptr as *const UnsafeCell<()>).is_aligned()));
+
+        // code of `is_valid_allocation_size`
+        let max_len = {
+            let size = std::mem::size_of::<UnsafeCell<T>>();
+            if size == 0 { usize::MAX } else { isize::MAX as usize / size }
+        };
+        assert!(self.len <= max_len);
+
+        // code in `slice::from_raw_parts`
+        // assert_unsafe_precondition!(
+        //     "slice::from_raw_parts requires the pointer to be aligned and non-null, and the total size of the slice not to exceed `isize::MAX`",
+        //     [T](data: *const T, len: usize) => is_aligned_and_not_null(data)
+        //         && is_valid_allocation_size::<T>(len)
+        // );
+
+        // panics with "slice::from_raw_parts requires the pointer to be aligned and non-null, and the total size of the slice not to exceed `isize::MAX`"
         // SAFETY: the inner data will remain valid for as long as 'self.
         std::slice::from_raw_parts(self.data.as_ptr() as *const UnsafeCell<T>, self.len)
     }
