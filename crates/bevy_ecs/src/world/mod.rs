@@ -454,7 +454,7 @@ impl World {
         let entity_location = {
             let bundle_info = self
                 .bundles
-                .init_info::<B>(&mut self.components, &mut self.storages);
+                .init_bundle::<B>(&mut self.components, &mut self.storages);
             let mut spawner = bundle_info.get_bundle_spawner(
                 &mut self.entities,
                 &mut self.archetypes,
@@ -1057,7 +1057,7 @@ impl World {
 
         let bundle_info = self
             .bundles
-            .init_info::<B>(&mut self.components, &mut self.storages);
+            .init_bundle::<B>(&mut self.components, &mut self.storages);
         enum SpawnOrInsert<'a, 'b> {
             Spawn(BundleSpawner<'a, 'b>),
             Insert(BundleInserter<'a, 'b>, ArchetypeId),
