@@ -70,7 +70,7 @@ impl Storages {
                 let (components, table_row) =
                     fetch_table(archetypes, self, location, component_id)?;
 
-                // SAFETY: archetypes only store valid table_rows and the stored component type is T
+                // SAFETY: archetypes only store valid table_rows and caller ensure aliasing rules
                 Some((
                     components.get_data_unchecked(table_row),
                     TickCells {
@@ -129,7 +129,7 @@ impl Storages {
             StorageType::Table => {
                 let (components, table_row) =
                     fetch_table(archetypes, self, location, component_id)?;
-                // SAFETY: archetypes only store valid table_rows and the stored component type is T
+                // SAFETY: archetypes only store valid table_rows and caller ensure aliasing rules
                 Some(components.get_data_unchecked(table_row))
             }
             StorageType::SparseSet => fetch_sparse_set(self, component_id)?.get(entity),
@@ -181,7 +181,7 @@ impl Storages {
             StorageType::Table => {
                 let (components, table_row) =
                     fetch_table(archetypes, self, location, component_id)?;
-                // SAFETY: archetypes only store valid table_rows and the stored component type is T
+                // SAFETY: archetypes only store valid table_rows and caller ensure aliasing rules
                 Some(components.get_ticks_unchecked(table_row))
             }
             StorageType::SparseSet => fetch_sparse_set(self, component_id)?.get_ticks(entity),
@@ -220,8 +220,8 @@ impl Storages {
                 let table = &mut self.tables[archetype.table_id()];
                 // SAFETY: archetypes will always point to valid columns
                 let components = table.get_column_mut(component_id).unwrap();
+                // SAFETY: archetypes only store valid table_rows
                 let table_row = archetype.entity_table_row(location.archetype_row);
-                // SAFETY: archetypes only store valid table_rows and the stored component type is T
                 // SAFETY: promote is safe because the caller promises to remove the table row without dropping it immediately afterwards
                 components.get_data_unchecked_mut(table_row).promote()
             }
