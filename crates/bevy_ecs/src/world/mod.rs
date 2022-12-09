@@ -1696,7 +1696,7 @@ impl World {
 }
 
 #[inline]
-unsafe fn fetch_table<'s>(
+unsafe fn fetch_table(
     world: &World,
     location: EntityLocation,
     component_id: ComponentId,
